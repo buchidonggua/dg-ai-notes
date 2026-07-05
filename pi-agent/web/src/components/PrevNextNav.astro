@@ -1,0 +1,110 @@
+---
+// src/components/PrevNextNav.astro
+// Task 5: created shell with client-side fetch for python variant.
+// Task 9 FIX: replaced client fetch('/modules/<slug>/python/') with
+//   server-side data attributes. The 404 console noise for TS-only modules
+//   is eliminated because we know counterpart existence at build time.
+import { getAdjacentModules, type ModuleEntry } from '../utils/collection';
+
+interface Props { entry: ModuleEntry; }
+const { entry } = Astro.props;
+const { prev, next } = await getAdjacentModules(entry.data.displayOrder);
+
+// Pre-compute Python variant URLs server-side from counterpart frontmatter.
+// Empty string means "no Python variant" — the client script skips those.
+function pyUrl(e: ModuleEntry | undefined): string {
+  if (!e || !e.data.counterpart) return '';
+  // counterpart points at the paired entry's slug; render its variant URL
+  const base = `/modules/${e.data.counterpart.replace(/\.python$/, '')}`;
+  // If the entry itself is TS, its counterpart is the Python variant
+  // (the counterpart field on a TS entry points to the .python slug)
+  return e.data.variant === 'ts' ? `${base}/python` : base;
+}
+
+const prevPyUrl = pyUrl(prev);
+const nextPyUrl = pyUrl(next);
+---
+
+<nav class="prevnext" aria-label="上下章导航">
+  {prev && (
+    <a
+      class="prev-card"
+      href={`/modules/${prev.slug}`}
+      data-py-url={prevPyUrl}
+    >
+      <span class="label">← 上一章 · {prev.data.module}</span>
+      <span class="title">{prev.data.title}</span>
+    </a>
+  )}
+  {!prev && <span class="prev-card placeholder" />}
+  {next && (
+    <a
+      class="next-card"
+      href={`/modules/${next.slug}`}
+      data-py-url={nextPyUrl}
+    >
+      <span class="label">{next.data.module} · 下一章 →</span>
+      <span class="title">{next.data.title}</span>
+    </a>
+  )}
+  {!next && <span class="next-card placeholder" />}
+</nav>
+
+<script>
+  // Follow language preference for prev/next links.
+  // Task 9: no fetch() — Python URL is provided server-side via data-py-url.
+  // If data-py-url is empty, the module has no Python variant and the TS
+  // link is left untouched. Zero network requests, zero 404s.
+  const STORAGE_KEY = 'pi-agent-book:lang';
+  let pref: string | null = null;
+  try { pref = localStorage.getItem(STORAGE_KEY); } catch { /* noop */ }
+
+  if (pref === 'python') {
+    document.querySelectorAll<HTMLAnchorElement>('.prev-card[data-py-url], .next-card[data-py-url]').forEach((a) => {
+      const pyUrl = a.dataset.pyUrl;
+      if (pyUrl) {
+        a.setAttribute('href', pyUrl);
+      }
+    });
+  }
+</script>
+
+<style>
+  .prevnext {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-6);
+    margin: var(--space-24) 0 var(--space-12);
+  }
+  .prev-card, .next-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-6);
+    background: var(--paper-raised);
+    border: var(--border-w) solid var(--rule);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    transition: all var(--dur-base) var(--ease);
+  }
+  .prev-card:hover, .next-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-2);
+    transform: translateY(-2px);
+  }
+  .prev-card:focus-visible, .next-card:focus-visible {
+    outline: var(--outline-w) solid var(--accent);
+    outline-offset: var(--outline-offset);
+  }
+  .next-card { text-align: right; }
+  .placeholder { visibility: hidden; }
+  .label {
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    color: var(--soft);
+  }
+  .title {
+    color: var(--ink);
+    font-weight: 500;
+  }
+</style>

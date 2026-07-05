@@ -1,0 +1,43 @@
+---
+// src/layouts/BaseLayout.astro
+import '../styles/base.css';
+import '../styles/prose.css';
+import '../styles/print.css';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description = 'Pi Agent 源码精读笔记' } = Astro.props;
+---
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title}</title>
+  <meta name="description" content={description} />
+
+  <!-- 字体加载（preconnect + display: swap）-->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- anti-FOUC：在 HTML 渲染前确定主题 -->
+  <script is:inline>
+    (function () {
+      const stored = localStorage.getItem('pi-agent-book:theme');
+      const mql = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = stored ?? (mql ? 'dark' : 'light');
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
+</head>
+<body>
+  <slot />
+  <script src="/js/diagram-linker.js" defer></script>
+</body>
+</html>

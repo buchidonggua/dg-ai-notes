@@ -1,0 +1,288 @@
+/* src/styles/print.css
+ * pi-agent-book PDF 导出打印样式
+ *
+ * 设计原则：
+ *   - 所有规则必须包裹在 @media print 内，对浏览器显示零副作用
+ *   - 锁定亮色 token（即使 web 是暗色，PDF 也用亮色省墨）
+ *   - 隐藏所有交互组件，仅保留正文 + 代码 + SVG 图
+ *   - 断页控制避免标题悬空、代码块切断
+ */
+
+/* ============================================================
+   全局：仅在打印时生效
+   ============================================================ */
+@media print {
+  /* —— 强制亮色 token（覆盖 anti-FOUC 设置的 dark）—— */
+  :root,
+  :root[data-theme="dark"] {
+    --paper:        #ffffff;
+    --paper-raised: #ffffff;
+    --paper-sunken: #f5f5f5;
+    --topbar-bg:    #ffffff;
+    --ink:          #1a1a1a;
+    --ink-strong:   #000000;
+    --muted:        #555555;
+    --soft:         #666666;
+    --rule:         rgba(0, 0, 0, 0.10);
+    --rule-strong:  #cccccc;
+    --accent:       #c2410c;  /* 比 web 主色深一档，省墨且打印对比好 */
+    --accent-soft:  rgba(194, 65, 12, 0.06);
+
+    /* 代码块保留暗色（one-dark-pro），屏幕 + 彩印都好看 */
+    --code-bg:           #1e2130;
+    --code-fg:           #e8eaf2;
+    --code-keyword:      #c792ea;
+    --code-string:       #c3e88d;
+    --code-comment:      #6b7089;
+    --code-number:       #f78c6c;
+    --code-fn:           #82aaff;
+    --code-meta-text:    #9aa5ce;
+    --code-tag-bg:       #282b3d;
+    --code-overlay-bg:   rgba(0, 0, 0, 0.25);
+    --code-border-subtle: rgba(255, 255, 255, 0.2);
+  }
+
+  /* —— 页面基础：A4 + 25mm 边距 + 11pt 中文友好正文 —— */
+  @page {
+    size: A4;
+    margin: 25mm;
+  }
+
+  html {
+    font-size: 11pt;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #1a1a1a !important;
+    font-size: 11pt;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* —— 隐藏所有交互 / 导航组件 —— */
+  .topbar,
+  .toc-left,
+  .outline-right,
+  .progress-rail,
+  .prevnext,
+  .lang-switcher,
+  #theme-toggle,
+  #diagram-lightbox,
+  .hamburger {
+    display: none !important;
+  }
+
+  /* —— 章节布局重排：去掉网格，正文占满 —— */
+  .page-grid {
+    display: block !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .module-main,
+  .prose {
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* —— 章节首页：每章新起一页 —— */
+  .module-header {
+    page-break-before: always;
+    break-before: page;
+    margin-bottom: 24pt;
+  }
+
+  /* 章首 H1 字号（11pt 基础上的视觉重音）*/
+  .module-header h1 {
+    font-size: 24pt;
+    line-height: 1.2;
+    margin-top: 0;
+    margin-bottom: 12pt;
+    color: #000000 !important;
+    font-weight: 700;
+  }
+
+  .module-eyebrow {
+    font-size: 10pt;
+    color: var(--accent) !important;
+    margin-bottom: 4pt;
+  }
+
+  .module-meta {
+    font-size: 9pt;
+    color: #666 !important;
+  }
+
+  /* Python notice 保留但简化 */
+  .python-notice {
+    font-size: 10pt;
+    margin-bottom: 16pt;
+    padding: 8pt 12pt;
+    background: #fafafa !important;
+    border-left: 3pt solid var(--accent);
+  }
+
+  /* —— 断页控制：避免内容被切断 —— */
+  pre,
+  figure,
+  table,
+  blockquote,
+  .diagram {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    break-after: avoid;
+    page-break-after: avoid;
+    color: #000000 !important;
+  }
+
+  h2 { font-size: 16pt; margin-top: 20pt; }
+  h3 { font-size: 13pt; margin-top: 16pt; }
+  h4 { font-size: 11pt; margin-top: 12pt; }
+
+  p, li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* —— 代码块：保留 Shiki 暗色，强制打印背景 —— */
+  pre,
+  pre * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  pre {
+    font-size: 9pt;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    padding: 10pt 12pt;
+    border-radius: 4pt;
+    page-break-inside: avoid;
+  }
+
+  /* —— Diagram 图表：矢量保真 + 不要阴影避免栅格化伪影 —— */
+  .diagram {
+    margin: 16pt 0;
+    text-align: center;
+  }
+
+  .diagram img,
+  .diagram svg {
+    max-width: 100%;
+    height: auto;
+    box-shadow: none !important;
+  }
+
+  .diagram figcaption {
+    font-size: 9pt;
+    color: #666 !important;
+    margin-top: 4pt;
+  }
+
+  /* —— 链接：用主色，不显示 URL（避免视觉污染）—— */
+  a {
+    color: var(--accent) !important;
+    text-decoration: underline;
+  }
+
+  a[href^="http"]::after,
+  a[href^="//"]::after {
+    content: "";  /* 不在 PDF 里展开 URL */
+  }
+
+  /* —— 表格 —— */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+  }
+
+  th, td {
+    border: 0.5pt solid #cccccc;
+    padding: 6pt 8pt;
+    text-align: left;
+  }
+
+  /* —— 首页（封面）打印优化 —— */
+  /* Hero 占满首页，作为封面 */
+  .hero {
+    min-height: 100vh;
+    display: flex !important;
+    flex-direction: column;
+    justify-content: center;
+    page-break-after: always;
+    break-after: page;
+    text-align: center;
+    padding: 0 20mm;
+  }
+
+  /* 隐藏首页的章节卡片网格（封面不需要） */
+  .all-modules {
+    display: none !important;
+  }
+
+  /* Hero 内的 CTA 按钮在 PDF 里没意义，隐藏 */
+  .hero .cta,
+  .hero a[class*="btn"],
+  .hero button {
+    display: none !important;
+  }
+
+  /* —— print-toc 目录页 —— */
+  .print-toc {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .print-toc h1 {
+    font-size: 28pt;
+    margin-bottom: 4pt;
+  }
+
+  .print-toc .toc-subtitle {
+    font-size: 14pt;
+    color: var(--accent) !important;
+    margin-bottom: 24pt;
+  }
+
+  .print-toc .toc-chapter {
+    display: flex;
+    align-items: baseline;
+    gap: 12pt;
+    padding: 6pt 0;
+    border-bottom: 0.25pt solid #eeeeee;
+    font-size: 11pt;
+  }
+
+  .print-toc .toc-num {
+    font-family: var(--font-mono);
+    color: var(--accent) !important;
+    font-weight: 600;
+    min-width: 28pt;
+  }
+
+  .print-toc .toc-title {
+    font-weight: 500;
+  }
+
+  .print-toc .toc-meta {
+    margin-top: 24pt;
+    font-size: 9pt;
+    color: #999 !important;
+  }
+
+  /* —— Color 调整：在打印模式下，所有元素强制保留颜色 —— */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

@@ -1,0 +1,163 @@
+/* src/styles/tokens.css */
+:root {
+  /* ===== 浅色（默认）===== */
+  --paper:        #f5f5f5;
+  --paper-raised: #ffffff;
+  --paper-sunken: #ececec;
+  --topbar-bg:    rgb(245 245 245 / 0.85);
+  --ink:          #2d3142;
+  --ink-strong:   #1a1d28;
+  --muted:        #4f5d75;
+  --soft:         #7a8399;
+  --rule:         rgba(45,49,66,0.12);
+  --rule-strong:  #bfc0c0;
+  --accent:       #eb6c36;
+  --accent-soft:  rgba(235,108,54,0.08);
+
+  /* 代码块 */
+  --code-bg:           #1e2130;
+  --code-fg:           #e8eaf2;
+  --code-keyword:      #c792ea;
+  --code-string:       #c3e88d;
+  --code-comment:      #6b7089;
+  --code-number:       #f78c6c;
+  --code-fn:           #82aaff;
+  --code-meta-text:    #9aa5ce;
+  --code-tag-bg:       #282b3d;
+  --code-overlay-bg:   rgba(0,0,0,0.25);
+  --code-border-subtle: rgba(255,255,255,0.2);
+
+  /* 字体 */
+  --font-display: 'Instrument Serif', 'Songti SC', 'STSong', serif;
+  --font-body:    'Geist', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-mono:    'Geist Mono', 'JetBrains Mono', Consolas, monospace;
+
+  /* 字号阶梯 */
+  --fs-h1:    64px;
+  --fs-h2:    32px;
+  --fs-h3:    22px;
+  --fs-body:  18px;
+  --fs-small: 14px;
+  --fs-xs:    12px;
+  --fs-code:  14px;
+
+  /* 行高 */
+  --lh-tight: 1.15;
+  --lh-prose: 1.75;
+
+  /* 间距 4 倍数 */
+  --space-half: 2px;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+
+  /* 阅读区几何 */
+  --read-width:  720px;
+  --toc-width:   240px;
+  --page-max:    1296px;
+  --col-gap:     32px;
+  --pad-x:       16px;
+
+  /* 结构性尺寸 */
+  --topbar-h:        56px;
+  --border-w:        1px;
+  --outline-w:       2px;
+  --outline-offset:  2px;
+  --underline-offset: 3px;
+
+  /* 圆角 */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+
+  /* 阴影 */
+  --shadow-1: 0 1px 2px rgba(45,49,66,0.04);
+  --shadow-2: 0 4px 12px rgba(45,49,66,0.06);
+  --shadow-3: 0 12px 32px rgba(45,49,66,0.10);
+
+  /* 动效 */
+  --ease:      cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out:  cubic-bezier(0, 0, 0.2, 1);
+  --dur-fast:  150ms;
+  --dur-base:  240ms;
+  --dur-slow:  400ms;
+
+  /* Lightbox 叠加层 */
+  --lb-backdrop-bg:      rgba(0,0,0,0.85);
+  --lb-btn-bg:           rgba(255,255,255,0.10);
+  --lb-btn-border:       rgba(255,255,255,0.30);
+  --lb-btn-fg:           #ffffff;
+  --lb-size:             48px;
+  --lb-close-fs:         24px;
+  --lb-z:                1000;
+  --lb-border-w:         1px;
+
+  /* S2 联动高亮 */
+  --hl-outline-w:        3px;
+  --hl-outline-offset:   4px;
+  --hl-glow:             8px;
+}
+
+:root[data-theme="dark"] {
+  --paper:        #1a1d28;
+  --paper-raised: #232636;
+  --paper-sunken: #14161f;
+  --topbar-bg:    rgb(26 29 40 / 0.85);
+  --ink:          #e8eaf2;
+  --ink-strong:   #ffffff;
+  --muted:        #b8bfd1;
+  --soft:         #7a8399;
+  --rule:         rgba(232,234,242,0.12);
+  --rule-strong:  #3a3f52;
+  /* accent 保持不变（深色下的视觉锚点）*/
+  --accent-soft:  rgba(235,108,54,0.16);
+
+  /* 代码块深色（保持，本身就是深色）*/
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:        #1a1d28;
+    --paper-raised: #232636;
+    --paper-sunken: #14161f;
+    --topbar-bg:    rgb(26 29 40 / 0.85);
+    --ink:          #e8eaf2;
+    --ink-strong:   #ffffff;
+    --muted:        #b8bfd1;
+    --rule:         rgba(232,234,242,0.12);
+    --rule-strong:  #3a3f52;
+    --accent-soft:  rgba(235,108,54,0.16);
+  }
+}
+
+/* ============================================================
+   响应式几何覆盖（布局刷新 2026-07-02）
+   - 默认 tier:    ≥1280, page-max 1296, toc 240, gap 32
+   - 中屏 tier:    ≥1440, page-max 1440, toc 280, gap 48
+   - 大屏 tier:    ≥1680, page-max 1600, toc 320, gap 56
+   中间阅读区永远 720px 居中，余量由 1fr 单元格吸收。
+   ============================================================ */
+@media (min-width: 1440px) {
+  :root {
+    --page-max:  1440px;
+    --toc-width: 280px;
+    --col-gap:   48px;
+    --pad-x:     24px;
+  }
+}
+
+@media (min-width: 1680px) {
+  :root {
+    --page-max:  1600px;
+    --toc-width: 320px;
+    --col-gap:   56px;
+    --pad-x:     32px;
+  }
+}

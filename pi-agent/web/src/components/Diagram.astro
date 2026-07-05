@@ -1,0 +1,88 @@
+---
+// src/components/Diagram.astro
+// 图显示组件（纯 markup）：figure + img + figcaption
+// MDX 使用：<Diagram file="/assets/xxx.svg" caption="..." id="..." darkMode="invert|native|none" />
+//
+// 深色模式策略（darkMode 字段）：
+//   - invert (默认): 沿用 prose.css 的 :root[data-theme="dark"] .prose figure svg { filter: invert(1) hue-rotate(180deg); }
+//   - native:        SVG 自带深色变体，退出全局 filter
+//   - none:          完全不过滤
+//
+// lightbox 行为、SVG 内联注入、S2 联动初始化
+// 统一由 DiagramLightbox.astro 全局负责（在 ModuleLayout 中挂载一次）。
+interface Props {
+  file: string;       // /assets/xxx.svg
+  caption?: string;
+  id?: string;        // 用于 S2 联动的图 id
+  darkMode?: 'invert' | 'native' | 'none';  // 单图深色策略覆盖
+}
+const { file, caption, id, darkMode } = Astro.props;
+const strategy = darkMode || 'invert';
+---
+
+<figure
+  class="diagram"
+  data-diagram-id={id}
+  data-dark-mode={strategy}
+  role="figure"
+  aria-label={caption || undefined}
+>
+  <img src={file} alt={caption || ''} loading="lazy" />
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+.diagram {
+  margin: var(--space-12) 0;
+  text-align: center;
+  cursor: zoom-in;
+}
+.diagram img {
+  width: 100%;
+  max-width: var(--read-width);
+  margin: 0 auto;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+  transition: transform var(--dur-base) var(--ease);
+}
+.diagram:hover img { transform: scale(1.01); }
+.diagram figcaption {
+  margin-top: var(--space-3);
+  font-size: var(--fs-small);
+  color: var(--soft);
+  font-style: italic;
+}
+</style>
+
+<!--
+  深色模式策略覆盖。
+  prose.css 默认对 .prose figure svg 应用 invert(1) hue-rotate(180deg)。
+  当 darkMode="native" 或 "none" 时，我们需要退出该 filter。
+  因为 <img src="*.svg"> 渲染的是 img 元素（非内联 svg），全局 .prose figure svg
+  选择器不会命中它 —— 但如果宿主页将 SVG 内联到 DOM，就需要此覆盖。
+  下面规则针对内联 svg 情况做策略性退出。
+-->
+<style is:global>
+/* 深色模式下 SVG 反相策略：
+   - prose.css 默认对 .prose figure svg (内联) 应用 invert(1) hue-rotate(180deg)
+   - 对 <img src="*.svg"> 我们在此显式应用同一 filter，并按 data-dark-mode 切换：
+     · invert (默认): 应用 invert filter
+     · native: SVG 自带深色变体，不加 filter
+     · none: 完全不过滤
+*/
+:root[data-theme="dark"] .prose figure.diagram[data-dark-mode="invert"] img {
+  filter: invert(1) hue-rotate(180deg);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .prose figure.diagram[data-dark-mode="invert"] img {
+    filter: invert(1) hue-rotate(180deg);
+  }
+}
+/* native / none 两种策略：退出所有 filter（无论内联 svg 还是 img）*/
+.prose figure.diagram[data-dark-mode="native"] svg,
+.prose figure.diagram[data-dark-mode="none"] svg,
+.prose figure.diagram[data-dark-mode="native"] img,
+.prose figure.diagram[data-dark-mode="none"] img {
+  filter: none !important;
+}
+</style>

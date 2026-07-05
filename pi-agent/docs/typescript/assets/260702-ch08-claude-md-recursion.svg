@@ -1,0 +1,129 @@
+  <svg viewBox="0 0 1080 640" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+      <marker id="arrow-green" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#2d6e3c"/>
+      </marker>
+    </defs>
+
+    <rect width="1080" height="640" fill="#faf7f2"/>
+
+    <!-- ===== Left: Directory tree + recursion arrows ===== -->
+    <g>
+      <text x="40" y="36" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace" letter-spacing="0.14em">MONOREPO 目录结构 + 向上递归</text>
+
+      <!-- Tree visualization -->
+      <g transform="translate(60, 60)">
+        <!-- / -->
+        <rect x="0" y="0" width="220" height="32" rx="4" fill="rgba(28,25,23,0.04)" stroke="rgba(28,25,23,0.20)" stroke-width="0.8"/>
+        <text x="12" y="20" fill="#57534e" font-size="11" font-family="'Geist Mono', monospace">/</text>
+        <rect x="180" y="6" width="36" height="20" rx="3" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="0.8"/>
+        <text x="198" y="20" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">CLAUDE</text>
+
+        <!-- /myorg -->
+        <line x1="20" y1="32" x2="20" y2="68" stroke="#a8a29e" stroke-width="0.8"/>
+        <rect x="20" y="68" width="220" height="32" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+        <text x="32" y="88" fill="#1c1917" font-size="11" font-family="'Geist Mono', monospace">└ myorg/</text>
+        <rect x="200" y="74" width="36" height="20" rx="3" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="0.8"/>
+        <text x="218" y="88" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">CLAUDE</text>
+
+        <!-- /teams/ -->
+        <line x1="40" y1="100" x2="40" y2="136" stroke="#a8a29e" stroke-width="0.8"/>
+        <rect x="40" y="136" width="220" height="32" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+        <text x="52" y="156" fill="#1c1917" font-size="11" font-family="'Geist Mono', monospace">  └ teams/teamA/</text>
+
+        <!-- /projects/ -->
+        <line x1="60" y1="168" x2="60" y2="204" stroke="#a8a29e" stroke-width="0.8"/>
+        <rect x="60" y="204" width="220" height="32" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+        <text x="72" y="224" fill="#1c1917" font-size="11" font-family="'Geist Mono', monospace">    └ projects/app1/</text>
+        <rect x="240" y="210" width="36" height="20" rx="3" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="0.8"/>
+        <text x="258" y="224" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">CLAUDE</text>
+
+        <!-- /src/ <- cwd -->
+        <line x1="80" y1="236" x2="80" y2="272" stroke="#a8a29e" stroke-width="0.8"/>
+        <rect x="80" y="272" width="220" height="32" rx="4" fill="rgba(45,110,60,0.08)" stroke="#2d6e3c" stroke-width="1.4"/>
+        <text x="92" y="292" fill="#1c1917" font-size="11" font-family="'Geist Mono', monospace" font-weight="600">      └ src/  ← cwd</text>
+
+        <!-- Upward recursion arrows -->
+        <path d="M 100 288 Q 50 288 50 220" stroke="#b5523a" stroke-width="1.2" fill="none" marker-end="url(#arrow-accent)" stroke-dasharray="3,2"/>
+        <path d="M 100 288 Q 30 288 30 88" stroke="#b5523a" stroke-width="1.2" fill="none" marker-end="url(#arrow-accent)" stroke-dasharray="3,2"/>
+        <path d="M 100 288 Q 14 288 14 20" stroke="#b5523a" stroke-width="1.2" fill="none" marker-end="url(#arrow-accent)" stroke-dasharray="3,2"/>
+
+        <text x="14" y="332" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" font-style="italic">↑ 从 cwd 向上爬到根，沿途 CLAUDE.md 全收集</text>
+      </g>
+    </g>
+
+    <!-- ===== Right: Merge order + XML result ===== -->
+    <g>
+      <text x="580" y="36" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace" letter-spacing="0.14em">合并顺序 · 外 → 内（祖先在前）</text>
+
+      <!-- Merge stack -->
+      <g transform="translate(580, 60)">
+        <rect x="0" y="0" width="460" height="44" rx="4" fill="rgba(181,82,58,0.04)" stroke="rgba(181,82,58,0.40)" stroke-width="0.8"/>
+        <text x="14" y="20" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace">① 全局</text>
+        <text x="14" y="36" fill="#1c1917" font-size="11" font-family="'Geist Mono', monospace">~/.pi/CLAUDE.md</text>
+        <text x="446" y="26" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">用户级（agentDir）</text>
+      </g>
+
+      <g transform="translate(580, 112)">
+        <rect x="0" y="0" width="460" height="44" rx="4" fill="rgba(181,82,58,0.04)" stroke="rgba(181,82,58,0.40)" stroke-width="0.8"/>
+        <text x="14" y="20" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace">② 祖先（从根到 cwd 上一层）</text>
+        <text x="14" y="36" fill="#1c1917" font-size="11" font-family="'Geist Mono', monospace">/myorg/CLAUDE.md</text>
+        <text x="446" y="26" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">全组织规范</text>
+      </g>
+
+      <g transform="translate(580, 164)">
+        <rect x="0" y="0" width="460" height="44" rx="4" fill="rgba(45,110,60,0.06)" stroke="#2d6e3c" stroke-width="1.2"/>
+        <text x="14" y="20" fill="#2d6e3c" font-size="9" font-family="'Geist Mono', monospace">③ 项目（cwd 本身）</text>
+        <text x="14" y="36" fill="#1c1917" font-size="11" font-family="'Geist Mono', monospace">/myorg/.../app1/CLAUDE.md</text>
+        <text x="446" y="26" fill="#2d6e3c" font-size="9" font-family="'Geist', sans-serif" text-anchor="end" font-weight="600">最具体（覆盖在前）</text>
+      </g>
+
+      <!-- Arrow down to XML output -->
+      <line x1="810" y1="220" x2="810" y2="252" stroke="#57534e" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+      <!-- XML output -->
+      <g transform="translate(580, 260)">
+        <rect x="0" y="0" width="460" height="200" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+        <text x="14" y="22" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace" letter-spacing="0.12em">XML-WRAPPED OUTPUT → SYSTEM PROMPT</text>
+        <text x="14" y="48" fill="#b5523a" font-size="11" font-family="'Geist Mono', monospace">&lt;project_context&gt;</text>
+
+        <text x="28" y="72" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">&lt;project_instructions</text>
+        <text x="40" y="88" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace">path="/myorg/CLAUDE.md"&gt;</text>
+        <text x="40" y="106" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">全组织规范：所有项目用 TS strict...</text>
+        <text x="28" y="124" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">&lt;/project_instructions&gt;</text>
+
+        <text x="28" y="148" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">&lt;project_instructions</text>
+        <text x="40" y="164" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace">path=".../app1/CLAUDE.md"&gt;</text>
+        <text x="40" y="182" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">本项目用 pnpm，测试 vitest...</text>
+        <text x="28" y="200" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">&lt;/project_instructions&gt; ...</text>
+      </g>
+    </g>
+
+    <!-- ===== Bottom: Skills lazy load comparison ===== -->
+    <line x1="40" y1="484" x2="1040" y2="484" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+    <text x="40" y="510" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace" letter-spacing="0.14em">SKILLS · 推模式 vs 拉模式</text>
+
+    <!-- Push (rejected) -->
+    <g transform="translate(40, 524)">
+      <rect x="0" y="0" width="480" height="84" rx="6" fill="rgba(28,25,23,0.02)" stroke="rgba(28,25,23,0.20)" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="20" y="22" fill="#a8a29e" font-size="10" font-family="'Geist Mono', monospace">推模式（传统 · 不用）</text>
+      <text x="20" y="44" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">系统提示词 ←─ 全文塞 10 个 SKILL.md</text>
+      <text x="20" y="64" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">10 × 2000 字 ≈ 50K token · 大部分无关</text>
+    </g>
+
+    <!-- Pull (Pi's way) -->
+    <g transform="translate(560, 524)">
+      <rect x="0" y="0" width="480" height="84" rx="6" fill="rgba(45,110,60,0.04)" stroke="#2d6e3c" stroke-width="1"/>
+      <text x="20" y="22" fill="#2d6e3c" font-size="10" font-family="'Geist Mono', monospace">拉模式（Pi 的方案 · 懒加载）</text>
+      <text x="20" y="44" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">系统提示词 ← 只放清单</text>
+      <text x="160" y="44" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">→ LLM 判断需要</text>
+      <text x="290" y="44" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">→ 调 read 工具</text>
+      <text x="20" y="64" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">10 × 4 行 ≈ 500 token · 用时才付</text>
+    </g>
+  </svg>

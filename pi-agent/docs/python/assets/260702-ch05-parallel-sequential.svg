@@ -1,0 +1,134 @@
+  <svg viewBox="0 0 960 580" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+    </defs>
+    <rect width="960" height="580" fill="#faf7f2"/>
+
+    <!-- Decision box at top -->
+    <rect x="280" y="20" width="400" height="64" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+    <text x="480" y="44" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">这批工具里有任何 sequential 工具？</text>
+    <text x="480" y="62" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">"一票否决"策略</text>
+    <text x="480" y="76" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle" font-style="italic">宁可多等，不可出错</text>
+
+    <!-- Left arrow: parallel -->
+    <line x1="380" y1="84" x2="200" y2="120" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+    <rect x="216" y="92" width="60" height="16" rx="2" fill="#faf7f2"/>
+    <text x="246" y="104" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">否</text>
+
+    <!-- Right arrow: sequential -->
+    <line x1="580" y1="84" x2="760" y2="120" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+    <rect x="684" y="92" width="60" height="16" rx="2" fill="#faf7f2"/>
+    <text x="714" y="104" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">是</text>
+
+    <!-- ===== LEFT: Parallel 三阶段 ===== -->
+    <rect x="40" y="124" width="440" height="48" rx="6" fill="rgba(45,110,60,0.06)" stroke="#2d6e3c" stroke-width="1"/>
+    <text x="260" y="148" fill="#2d6e3c" font-size="11" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">PARALLEL · 三阶段设计</text>
+    <text x="260" y="164" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">省时间但保证正确性</text>
+
+    <!-- timeline axis -->
+    <text x="60" y="200" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.10em">TIME →</text>
+    <line x1="60" y1="220" x2="460" y2="220" stroke="rgba(28,25,23,0.20)" stroke-width="0.8"/>
+
+    <!-- Stage 1: 准备（顺序） -->
+    <text x="60" y="244" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace">阶段 1 · 准备（顺序）</text>
+    <g>
+      <rect x="60" y="252" width="120" height="40" rx="4" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <text x="120" y="270" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">A 准备</text>
+      <text x="120" y="284" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">验证+权限</text>
+    </g>
+    <line x1="180" y1="272" x2="184" y2="272" stroke="#57534e" stroke-width="0.8"/>
+    <g>
+      <rect x="188" y="252" width="120" height="40" rx="4" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <text x="248" y="270" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">B 准备</text>
+      <text x="248" y="284" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">验证+权限</text>
+    </g>
+    <line x1="308" y1="272" x2="312" y2="272" stroke="#57534e" stroke-width="0.8"/>
+    <g>
+      <rect x="316" y="252" width="120" height="40" rx="4" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <text x="376" y="270" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">C 准备</text>
+      <text x="376" y="284" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">验证+权限</text>
+    </g>
+
+    <!-- Stage 2: 执行（并行） -->
+    <text x="60" y="324" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace">阶段 2 · 执行（并行）★</text>
+    <g>
+      <rect x="60" y="332" width="120" height="56" rx="4" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+      <text x="120" y="354" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">A.execute()</text>
+      <text x="120" y="372" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">Promise.all</text>
+      <text x="120" y="384" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">同时跑</text>
+    </g>
+    <g>
+      <rect x="188" y="332" width="120" height="56" rx="4" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+      <text x="248" y="354" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">B.execute()</text>
+      <text x="248" y="372" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">Promise.all</text>
+      <text x="248" y="384" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">同时跑</text>
+    </g>
+    <g>
+      <rect x="316" y="332" width="120" height="56" rx="4" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+      <text x="376" y="354" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">C.execute()</text>
+      <text x="376" y="372" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">Promise.all</text>
+      <text x="376" y="384" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">同时跑</text>
+    </g>
+
+    <!-- Stage 3: 事件（有序） -->
+    <text x="60" y="420" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace">阶段 3 · 事件（有序）</text>
+    <g>
+      <rect x="60" y="428" width="376" height="32" rx="4" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+      <text x="248" y="448" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">
+        end 按完成顺序 · result 按调用顺序（A→B→C）
+      </text>
+    </g>
+
+    <!-- Why -->
+    <rect x="60" y="488" width="376" height="68" rx="4" fill="rgba(181,82,58,0.04)" stroke="rgba(181,82,58,0.30)" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="80" y="512" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace" letter-spacing="0.14em">WHY</text>
+    <text x="80" y="532" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">准备阶段必须顺序：B 被拦截了 C 就不该跑</text>
+    <text x="80" y="546" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">结果消息保持顺序：模型依赖调用顺序</text>
+
+    <!-- ===== RIGHT: Sequential ===== -->
+    <rect x="500" y="124" width="440" height="48" rx="6" fill="rgba(28,25,23,0.05)" stroke="#1c1917" stroke-width="1"/>
+    <text x="720" y="148" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">SEQUENTIAL · 瀑布式</text>
+    <text x="720" y="164" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">一个完全结束才开始下一个</text>
+
+    <!-- timeline -->
+    <text x="520" y="200" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.10em">TIME →</text>
+    <line x1="520" y1="220" x2="920" y2="220" stroke="rgba(28,25,23,0.20)" stroke-width="0.8"/>
+
+    <!-- A -->
+    <g>
+      <rect x="520" y="252" width="376" height="56" rx="4" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <text x="540" y="274" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">ToolCall A</text>
+      <text x="540" y="290" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">准备 → 验证 → beforeHook → execute → afterHook → emit end</text>
+      <text x="708" y="302" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" font-style="italic">完整管道跑完</text>
+    </g>
+
+    <line x1="708" y1="308" x2="708" y2="324" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- B -->
+    <g>
+      <rect x="520" y="328" width="376" height="56" rx="4" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <text x="540" y="350" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">ToolCall B</text>
+      <text x="540" y="366" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">准备 → 验证 → beforeHook → execute → afterHook → emit end</text>
+      <text x="708" y="378" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" font-style="italic">完整管道跑完</text>
+    </g>
+
+    <line x1="708" y1="384" x2="708" y2="400" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- C -->
+    <g>
+      <rect x="520" y="404" width="376" height="56" rx="4" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <text x="540" y="426" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">ToolCall C</text>
+      <text x="540" y="442" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">准备 → 验证 → beforeHook → execute → afterHook → emit end</text>
+      <text x="708" y="454" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" font-style="italic">完整管道跑完</text>
+    </g>
+
+    <!-- Why -->
+    <rect x="520" y="488" width="376" height="68" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.20)" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="540" y="512" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace" letter-spacing="0.14em">WHEN TO USE</text>
+    <text x="540" y="532" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">扩展工具显式声明 executionMode: "sequential"</text>
+    <text x="540" y="546" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">v0.80.2 内置工具均默认 parallel；edit 靠内层 mutation queue</text>
+  </svg>

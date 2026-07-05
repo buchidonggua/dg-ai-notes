@@ -1,0 +1,146 @@
+  <svg viewBox="0 0 960 620" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+      <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/>
+      </marker>
+    </defs>
+
+    <rect width="960" height="620" fill="#faf7f2"/>
+
+    <!-- ===== Layer 1: 客户 (Agent Loop) ===== -->
+    <g>
+      <rect x="280" y="30" width="400" height="80" rx="6" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="1" stroke-dasharray="4,3"/>
+      <rect x="296" y="42" width="56" height="14" rx="2" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+      <text x="324" y="53" fill="#57534e" font-size="7" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">CLIENT</text>
+      <text x="480" y="76" fill="#1c1917" font-size="14" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">Agent Loop</text>
+      <text x="480" y="96" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace"
+            text-anchor="middle">streamSimple(model, context, options)</text>
+    </g>
+
+    <line x1="480" y1="110" x2="480" y2="148" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- ===== Layer 2: 前台 (统一入口) ===== -->
+    <g>
+      <rect x="160" y="152" width="640" height="80" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="176" y="164" width="76" height="14" rx="2" fill="rgba(181,82,58,0.10)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
+      <text x="214" y="175" fill="#b5523a" font-size="7" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">LAYER 1 · 入口</text>
+      <text x="480" y="196" fill="#1c1917" font-size="14" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">前台：stream()</text>
+      <text x="480" y="216" fill="#57534e" font-size="10" font-family="'Geist', sans-serif"
+            text-anchor="middle">查表 resolveApiProvider(model.api) → 派给翻译员</text>
+    </g>
+
+    <!-- left side: registry hint -->
+    <text x="40" y="195" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.10em">REGISTRY</text>
+    <text x="40" y="211" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif">"通讯录"</text>
+    <text x="40" y="226" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif">BUILTIN_APIS[]</text>
+
+    <!-- right side: streamSimple note -->
+    <text x="820" y="195" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.10em">SIMPLE WRAPPER</text>
+    <text x="820" y="211" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif">思考级别翻译</text>
+    <text x="820" y="226" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif">+ maxTokens 调整</text>
+
+    <line x1="480" y1="232" x2="480" y2="270" stroke="#57534e" stroke-width="1"/>
+
+    <!-- ===== Layer 3: 标准报告协议 (12种事件) ===== -->
+    <g>
+      <rect x="160" y="274" width="640" height="60" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.2"/>
+      <rect x="176" y="286" width="156" height="14" rx="2" fill="rgba(181,82,58,0.10)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
+      <text x="254" y="297" fill="#b5523a" font-size="7" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">LAYER 2 · 事件协议</text>
+      <text x="480" y="316" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">标准报告：12 种 AssistantMessageEvent</text>
+      <text x="480" y="328" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">start · text_* · thinking_* · toolcall_* · done · error</text>
+    </g>
+
+    <line x1="200" y1="334" x2="200" y2="370" stroke="#b5523a" stroke-width="1" marker-end="url(#arrow-accent)"/>
+    <line x1="400" y1="334" x2="400" y2="370" stroke="#b5523a" stroke-width="1" marker-end="url(#arrow-accent)"/>
+    <line x1="560" y1="334" x2="560" y2="370" stroke="#b5523a" stroke-width="1" marker-end="url(#arrow-accent)"/>
+    <line x1="760" y1="334" x2="760" y2="370" stroke="#b5523a" stroke-width="1" marker-end="url(#arrow-accent)"/>
+
+    <!-- ===== Layer 4: 翻译员们 ===== -->
+    <text x="40" y="380" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.10em">TRANSLATORS</text>
+    <text x="40" y="396" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif">每个精通</text>
+    <text x="40" y="410" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif">一种方言</text>
+
+    <!-- 4 translator cards -->
+    <g>
+      <rect x="100" y="374" width="200" height="124" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="100" y="374" width="200" height="28" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="200" y="392" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">Anthropic 翻译员</text>
+      <text x="200" y="422" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">api: "anthropic-messages"</text>
+      <line x1="120" y1="436" x2="280" y2="436" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+      <text x="200" y="454" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">自己解析 SSE 流</text>
+      <text x="200" y="470" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">content_block → text_*</text>
+      <text x="200" y="486" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle" font-style="italic">~1000 行</text>
+    </g>
+
+    <g>
+      <rect x="320" y="374" width="200" height="124" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="320" y="374" width="200" height="28" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="420" y="392" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">OpenAI 翻译员</text>
+      <text x="420" y="422" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">api: "openai-completions"</text>
+      <line x1="340" y1="436" x2="500" y2="436" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+      <text x="420" y="454" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">用官方 SDK</text>
+      <text x="420" y="470" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">chunk.delta → text_*</text>
+      <text x="420" y="486" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle" font-style="italic">SDK 帮你做脏活</text>
+    </g>
+
+    <g>
+      <rect x="540" y="374" width="200" height="124" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="540" y="374" width="200" height="28" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="640" y="392" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">Google 翻译员</text>
+      <text x="640" y="422" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">api: "google-generative-ai"</text>
+      <line x1="560" y1="436" x2="720" y2="436" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+      <text x="640" y="454" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">content → parts</text>
+      <text x="640" y="470" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">thinkingConfig</text>
+      <text x="640" y="486" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle" font-style="italic">字段名都不同</text>
+    </g>
+
+    <g>
+      <rect x="760" y="374" width="160" height="124" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="760" y="374" width="160" height="28" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="840" y="392" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">Bedrock 翻译员</text>
+      <text x="840" y="422" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">api: "bedrock-converse"</text>
+      <line x1="776" y1="436" x2="944" y2="436" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+      <text x="840" y="454" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">包了 AWS 一层</text>
+      <text x="840" y="470" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">cachePoint 节点</text>
+      <text x="840" y="486" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle" font-style="italic">还有 5+ 个</text>
+    </g>
+
+    <!-- ===== 流回箭头（响应方向）===== -->
+    <path d="M 200 498 Q 200 540 480 540 Q 760 540 760 498"
+          fill="none" stroke="#2e5aa8" stroke-width="1" stroke-dasharray="5,4"/>
+    <rect x="430" y="532" width="100" height="16" rx="2" fill="#faf7f2"/>
+    <text x="480" y="544" fill="#2e5aa8" font-size="9" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.06em">AssistantMessageEventStream</text>
+
+    <!-- 底部 insight -->
+    <line x1="40" y1="572" x2="920" y2="572" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+    <text x="40" y="592" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">INSIGHT</text>
+    <text x="120" y="592" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" font-style="italic">
+      前台不懂外语，翻译员不懂公司流程——两者靠"标准报告"协议连接。Agent Loop 永远只看到统一事件流。
+    </text>
+  </svg>

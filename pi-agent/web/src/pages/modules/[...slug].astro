@@ -1,0 +1,27 @@
+---
+// src/pages/modules/[...slug].astro
+// Catch-all dynamic route for module reading pages.
+// Generates one path per module entry (TS base + Python variant if applicable).
+import ModuleLayout from '../../layouts/ModuleLayout.astro';
+import { getAllModules } from '../../utils/collection';
+
+export async function getStaticPaths() {
+  const all = await getAllModules();
+  return all.map(entry => {
+    const isPython = entry.data.variant === 'python';
+    const baseSlug = entry.slug.replace(/\.python$/, '');
+    const route = isPython ? `${baseSlug}/python` : baseSlug;
+    return {
+      params: { slug: route },
+      props: { entry },
+    };
+  });
+}
+
+const { entry } = Astro.props;
+const { Content } = await entry.render();
+---
+
+<ModuleLayout entry={entry}>
+  <Content />
+</ModuleLayout>

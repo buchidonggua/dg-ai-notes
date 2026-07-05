@@ -1,0 +1,190 @@
+---
+// src/components/CodeBlock.astro
+// 此组件不直接渲染，而是作为客户端增强脚本注入到所有含 <pre> 的页面
+---
+
+<script>
+  // 增强所有 <pre>：加 meta 行 + 复制按钮 + 长代码折叠
+  function enhanceCodeBlocks() {
+    document.querySelectorAll<HTMLPreElement>('pre').forEach((pre) => {
+      if (pre.dataset.enhanced) return;
+      // Skip <pre> inside React Islands (e.g. .message-card) — CodeBlock
+      // must not mutate DOM that React owns, or hydration will mismatch.
+      if (pre.closest('.message-card')) return;
+      pre.dataset.enhanced = 'true';
+
+      const code = pre.querySelector('code');
+      if (!code) return;
+      const lang = pre.getAttribute('data-language')
+        || Array.from(code.classList).find(c => c.startsWith('language-'))?.replace('language-', '') || '';
+
+      // Try data-source-loc from remark plugin first; fallback to parsing first code line
+      let sourceLoc = pre.getAttribute('data-source-loc') || pre.querySelector('[data-source-loc]')?.getAttribute('data-source-loc') || '';
+      let id = pre.id || pre.querySelector('[id]')?.id || '';
+
+      // Fallback: parse # 原文: file.ts:XXX-YYY from first code line
+      if (!sourceLoc) {
+        const fullText = code.textContent || '';
+        const firstLine = fullText.split('\n')[0] || '';
+        const m = firstLine.match(/(?:#|\/\/|\/\*)\s*原文:\s*([a-zA-Z0-9_./-]+?):(\d+)-(\d+)/);
+        if (m) {
+          const [, file, startLine, endLine] = m;
+          sourceLoc = `${file}:${startLine}-${endLine}`;
+          if (!id) {
+            const fileSlug = file.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+            id = `code-${fileSlug}-${startLine}`;
+          }
+        }
+      }
+
+      // 包装容器
+      const wrapper = document.createElement('div');
+      wrapper.className = 'code-block';
+      if (id) wrapper.id = id;
+      pre.parentNode!.insertBefore(wrapper, pre);
+      wrapper.appendChild(pre);
+
+      // meta 行 — 安全 DOM 构造（Fix 5: 不使用 innerHTML）
+      const meta = document.createElement('div');
+      meta.className = 'code-meta';
+
+      const langSpan = document.createElement('span');
+      langSpan.className = 'code-lang';
+      langSpan.textContent = lang;
+      meta.appendChild(langSpan);
+
+      if (sourceLoc) {
+        const sourceSpan = document.createElement('span');
+        sourceSpan.className = 'code-source';
+        sourceSpan.textContent = sourceLoc;
+        meta.appendChild(sourceSpan);
+      }
+
+      // 复制按钮
+      const btn = document.createElement('button');
+      btn.className = 'code-copy';
+      btn.setAttribute('aria-label', '复制代码');
+      btn.textContent = '复制';
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.textContent || '');
+          btn.textContent = '已复制';
+          btn.classList.add('is-success');
+          setTimeout(() => { btn.textContent = '复制'; btn.classList.remove('is-success'); }, 2000);
+        } catch {
+          // Fix 4: 降级到 execCommand，失败后给出完整提示
+          try {
+            const range = document.createRange();
+            range.selectNodeContents(code);
+            const selection = window.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            const ok = document.execCommand('copy');
+            selection?.removeAllRanges();
+            if (ok) {
+              btn.textContent = '已复制';
+              btn.classList.add('is-success');
+              setTimeout(() => { btn.textContent = '复制'; btn.classList.remove('is-success'); }, 2000);
+            } else {
+              btn.textContent = '复制失败，请手动选择';
+            }
+          } catch {
+            btn.textContent = '复制失败，请手动选择';
+          }
+        }
+      });
+      meta.appendChild(btn);
+      wrapper.insertBefore(meta, pre);
+
+      // 长代码折叠
+      const lineCount = (code.textContent || '').split('\n').length;
+      if (lineCount > 30) {
+        const stored = localStorage.getItem(`code-expand:${id || sourceLoc}`);
+        if (stored !== '1') {
+          pre.style.maxHeight = '260px';
+          pre.style.overflow = 'hidden';
+          const expander = document.createElement('button');
+          expander.className = 'code-expander';
+          expander.textContent = `展开查看全部 ${lineCount} 行`;
+          expander.addEventListener('click', () => {
+            pre.style.maxHeight = '';
+            pre.style.overflow = '';
+            expander.remove();
+            localStorage.setItem(`code-expand:${id || sourceLoc}`, '1');
+          });
+          wrapper.appendChild(expander);
+        }
+      }
+    });
+  }
+
+  // 首次加载 + Astro View Transitions 路由切换后
+  enhanceCodeBlocks();
+  document.addEventListener('astro:page-load', enhanceCodeBlocks);
+</script>
+
+<style is:global>
+.code-block {
+  position: relative;
+  margin: var(--space-6) 0 var(--space-8);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+}
+.code-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--code-overlay-bg);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--code-meta-text);
+}
+.code-meta .code-source { margin-left: auto; opacity: 0.7; }
+.code-meta .code-lang {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+.code-copy {
+  margin-left: auto;
+  background: none;
+  border: var(--border-w) solid var(--code-border-subtle);
+  color: var(--code-meta-text);
+  padding: var(--space-half) var(--space-3);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.code-copy:hover { color: var(--ink-strong); border-color: var(--accent); }
+.code-copy.is-success { color: var(--code-string); border-color: var(--code-string); }
+.code-block pre { margin: 0; border-radius: 0; box-shadow: none; }
+.code-expander {
+  display: block;
+  width: 100%;
+  padding: var(--space-3);
+  background: var(--code-bg);
+  color: var(--accent);
+  border: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.code-expander:hover { background: var(--code-tag-bg); }
+
+/* Fix 3: 行号 — CSS counters */
+.code-block pre { counter-reset: line; }
+.code-block pre .line { counter-increment: line; }
+.code-block pre .line::before {
+  content: counter(line);
+  display: inline-block;
+  width: 2.5ch;
+  margin-right: 1ch;
+  color: var(--code-meta-text);
+  text-align: right;
+  user-select: none;
+  opacity: 0.5;
+}
+</style>

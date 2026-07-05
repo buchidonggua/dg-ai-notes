@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>压缩的切割点算法</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --paper: #faf7f2; --ink: #1c1917; --muted: #57534e; --soft: #a8a29e;
+    --rule: rgba(28,25,23,0.10); --accent: #b5523a; --green: #2d6e3c; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink);
+    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    padding: 3rem 1.5rem 2rem; line-height: 1.5; }
+  .container { max-width: 1180px; margin: 0 auto; }
+  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  h1 { font-family: 'Instrument Serif', 'Source Han Serif SC', serif; font-weight: 400;
+    font-size: 32px; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 2rem; max-width: 64ch; }
+  .frame { background: rgba(28,25,23,0.02); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--soft);
+    letter-spacing: 0.1em; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 9 章 · SEQUENCE</p>
+  <h1>压缩的切割点算法</h1>
+  <p class="subtitle">上下文快满时要把旧消息压成摘要。算法从最新消息往回累积 token，找最近的有效切割点——user 或 assistant 都可以，toolResult 不行。这一张图展示切点落在 assistant 上的典型场景：会切断 Turn，触发 turnPrefix 处理。</p>
+
+  <div class="frame">
+  <svg viewBox="0 0 1080 620" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+    </defs>
+    <rect width="1080" height="620" fill="#faf7f2"/>
+
+    <!-- Message sequence strip -->
+    <text x="40" y="40" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">MESSAGE SEQUENCE (entries 0-9)</text>
+
+    <g>
+      <!-- entry 0: user -->
+      <rect x="40" y="60" width="80" height="60" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+      <text x="80" y="80" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">0</text>
+      <text x="80" y="98" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">user</text>
+      <text x="80" y="112" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">"读文件"</text>
+
+      <!-- entry 1: assistant ToolCall -->
+      <rect x="124" y="60" width="80" height="60" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+      <text x="164" y="80" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">1</text>
+      <text x="164" y="98" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">assistant</text>
+      <text x="164" y="112" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">read</text>
+
+      <!-- entry 2: toolResult -->
+      <rect x="208" y="60" width="80" height="60" rx="4" fill="rgba(45,110,60,0.06)" stroke="#2d6e3c" stroke-width="1"/>
+      <text x="248" y="80" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">2</text>
+      <text x="248" y="98" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">toolResult</text>
+      <text x="248" y="112" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">文件内容</text>
+
+      <!-- entry 3: assistant -->
+      <rect x="292" y="60" width="80" height="60" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+      <text x="332" y="80" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">3</text>
+      <text x="332" y="98" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">assistant</text>
+      <text x="332" y="112" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">解释</text>
+
+      <!-- entry 4: user (turnStart) -->
+      <rect x="376" y="60" width="80" height="60" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+      <text x="416" y="80" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">4</text>
+      <text x="416" y="98" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">user</text>
+      <text x="416" y="112" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">"改一下"</text>
+      <!-- turnStart marker (small dot above) -->
+      <circle cx="416" cy="50" r="3" fill="#57534e"/>
+      <text x="416" y="42" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">turnStart</text>
+
+      <!-- entry 5: assistant (edit ToolCall) -->
+      <rect x="460" y="60" width="80" height="60" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+      <text x="500" y="80" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">5</text>
+      <text x="500" y="98" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">assistant</text>
+      <text x="500" y="112" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">edit</text>
+
+      <!-- entry 6: toolResult -->
+      <rect x="544" y="60" width="80" height="60" rx="4" fill="rgba(45,110,60,0.06)" stroke="#2d6e3c" stroke-width="1"/>
+      <text x="584" y="80" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">6</text>
+      <text x="584" y="98" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">toolResult</text>
+      <text x="584" y="112" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">改完了</text>
+
+      <!-- entry 7: assistant (CUT POINT - bash ToolCall) -->
+      <rect x="628" y="60" width="80" height="60" rx="4" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1.6"/>
+      <text x="668" y="80" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">7</text>
+      <text x="668" y="98" fill="#b5523a" font-size="9" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">assistant</text>
+      <text x="668" y="112" fill="#b5523a" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">bash</text>
+
+      <!-- entry 8: toolResult -->
+      <rect x="712" y="60" width="80" height="60" rx="4" fill="rgba(45,110,60,0.06)" stroke="#2d6e3c" stroke-width="1"/>
+      <text x="752" y="80" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">8</text>
+      <text x="752" y="98" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">toolResult</text>
+      <text x="752" y="112" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">通过</text>
+
+      <!-- entry 9: assistant -->
+      <rect x="796" y="60" width="80" height="60" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+      <text x="836" y="80" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">9</text>
+      <text x="836" y="98" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">assistant</text>
+      <text x="836" y="112" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">回答</text>
+    </g>
+
+    <!-- Search direction -->
+    <text x="908" y="80" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.10em">SEARCH</text>
+    <path d="M 888 90 Q 878 100 888 110" fill="none" stroke="#b5523a" stroke-width="1" marker-end="url(#arrow-accent)"/>
+    <text x="908" y="112" fill="#57534e" font-size="8" font-family="'Geist', sans-serif">从新→旧</text>
+    <text x="908" y="124" fill="#57534e" font-size="8" font-family="'Geist', sans-serif">累积 token</text>
+
+    <!-- Cut point evaluation -->
+    <text x="40" y="160" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">CUT POINT EVALUATION</text>
+
+    <!-- entry 9: assistant - valid candidate but token not enough -->
+    <line x1="836" y1="120" x2="836" y2="172" stroke="#57534e" stroke-width="0.8" stroke-dasharray="3,2"/>
+    <rect x="776" y="172" width="120" height="28" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+    <text x="836" y="190" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">候选·token 不够</text>
+
+    <!-- entry 8: toolResult - invalid -->
+    <line x1="752" y1="120" x2="752" y2="172" stroke="#b5523a" stroke-width="0.8" stroke-dasharray="3,2"/>
+    <rect x="692" y="172" width="120" height="28" rx="4" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+    <text x="752" y="190" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">✗ 不能切（toolResult）</text>
+
+    <!-- entry 7: assistant - CHOSEN -->
+    <line x1="668" y1="120" x2="668" y2="216" stroke="#b5523a" stroke-width="1.4"/>
+    <rect x="588" y="216" width="160" height="36" rx="4" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1.4"/>
+    <text x="668" y="232" fill="#b5523a" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">✓ 选定切点（assistant）</text>
+    <text x="668" y="246" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">token 累积够了 · 但触发 split turn</text>
+
+    <!-- Three-zone division lines -->
+    <!-- Vertical separator before entry 4 (turnStart) -->
+    <line x1="372" y1="60" x2="372" y2="320" stroke="#57534e" stroke-width="0.8" stroke-dasharray="4,3"/>
+    <!-- Vertical separator before entry 7 (cut point) - accent line -->
+    <line x1="624" y1="60" x2="624" y2="320" stroke="#b5523a" stroke-width="1.4"/>
+
+    <!-- Three zones labels -->
+    <text x="206" y="304" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">
+      主摘要区
+    </text>
+    <text x="206" y="320" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">
+      entries 0-3 · 完整历史
+    </text>
+
+    <text x="498" y="304" fill="#57534e" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">
+      turnPrefix 区
+    </text>
+    <text x="498" y="320" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">
+      entries 4-6 · 被切断的半个 Turn
+    </text>
+
+    <text x="828" y="304" fill="#2d6e3c" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">
+      保留区
+    </text>
+    <text x="828" y="320" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">
+      entries 7-9 · 切点之后
+    </text>
+
+    <!-- Compaction flow: two parallel summaries + kept -->
+    <line x1="40" y1="344" x2="1040" y2="344" stroke="rgba(28,25,23,0.15)" stroke-width="1" stroke-dasharray="6,4"/>
+
+    <text x="40" y="368" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">COMPACTION · 两份摘要并行生成（Promise.all）</text>
+
+    <!-- Main summary box -->
+    <rect x="40" y="384" width="320" height="68" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+    <text x="56" y="404" fill="#b5523a" font-size="10" font-weight="600" font-family="'Geist', sans-serif">主摘要</text>
+    <text x="56" y="420" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">SUMMARIZATION_PROMPT</text>
+    <text x="56" y="436" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">· 6 个固定 section（Goal/Progress/...）</text>
+    <text x="56" y="448" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">· 输入：previousSummary + entries 0-3</text>
+
+    <!-- Turn prefix summary box -->
+    <rect x="380" y="384" width="320" height="68" rx="6" fill="rgba(28,25,23,0.03)" stroke="#57534e" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="396" y="404" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">turnPrefix 摘要</text>
+    <text x="396" y="420" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">TURN_PREFIX_SUMMARIZATION_PROMPT</text>
+    <text x="396" y="436" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">· 3 段轻量格式（Request/Progress/Context）</text>
+    <text x="396" y="448" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">· 输入：entry 4 (user) + entries 5-6</text>
+
+    <!-- Kept box -->
+    <rect x="720" y="384" width="320" height="68" rx="6" fill="rgba(45,110,60,0.06)" stroke="#2d6e3c" stroke-width="1"/>
+    <text x="736" y="404" fill="#2d6e3c" font-size="10" font-weight="600" font-family="'Geist', sans-serif">保留消息</text>
+    <text x="736" y="420" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">不进 LLM 摘要，原样保留</text>
+    <text x="736" y="436" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">· entries 7-9 完整进入下一轮 context</text>
+    <text x="736" y="448" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">切点之后的所有消息</text>
+
+    <!-- Merge arrow -->
+    <line x1="360" y1="418" x2="378" y2="418" stroke="#57534e" stroke-width="1"/>
+    <text x="369" y="412" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">+</text>
+
+    <!-- Result: single combined summary -->
+    <text x="40" y="484" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">RESULT · 合并后存入 CompactionEntry</text>
+
+    <rect x="40" y="500" width="1000" height="44" rx="6" fill="rgba(181,82,58,0.04)" stroke="rgba(181,82,58,0.30)" stroke-width="1"/>
+
+    <rect x="56" y="510" width="280" height="24" rx="4" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1"/>
+    <text x="196" y="526" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">主摘要文本</text>
+
+    <text x="356" y="527" fill="#57534e" font-size="11" font-family="'Geist', sans-serif">+</text>
+
+    <rect x="376" y="510" width="280" height="24" rx="4" fill="rgba(28,25,23,0.05)" stroke="#57534e" stroke-width="1"/>
+    <text x="516" y="526" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">Turn Context (split turn) 前缀摘要</text>
+
+    <text x="676" y="527" fill="#57534e" font-size="11" font-family="'Geist', sans-serif">+</text>
+
+    <rect x="696" y="510" width="328" height="24" rx="4" fill="rgba(45,110,60,0.06)" stroke="#2d6e3c" stroke-width="1"/>
+    <text x="860" y="526" fill="#2d6e3c" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">entries 7-9 原始消息（保留区）</text>
+
+    <!-- Bottom rules -->
+    <line x1="40" y1="572" x2="1040" y2="572" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+    <text x="40" y="592" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">RULES</text>
+
+    <text x="40" y="608" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">
+      ✓ 合法切点：user 或 assistant 之后 · ✗ 非法切点：toolResult 之后（会切断 ToolCall-Result 对）
+    </text>
+    <text x="640" y="608" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
+      切在 assistant 上 → split turn → turnPrefix 摘要弥补
+    </text>
+  </svg>
+  </div>
+
+  <div class="footer">
+    <span>PI-AGENT · 项目原理二次整理版</span>
+    <span>260702 · CH08 · SEQUENCE</span>
+  </div>
+</div>
+</body>
+</html>

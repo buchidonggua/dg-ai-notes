@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>流式响应：原地替换的妙用</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --paper: #faf7f2; --ink: #1c1917; --muted: #57534e; --soft: #a8a29e;
+    --rule: rgba(28,25,23,0.10); --accent: #b5523a; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink);
+    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    padding: 3rem 1.5rem 2rem; line-height: 1.5; }
+  .container { max-width: 1080px; margin: 0 auto; }
+  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  h1 { font-family: 'Instrument Serif', 'Source Han Serif SC', serif; font-weight: 400;
+    font-size: 32px; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 2rem; max-width: 64ch; }
+  .frame { background: rgba(28,25,23,0.02); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--soft);
+    letter-spacing: 0.1em; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 3 章 · TIMELINE</p>
+  <h1>流式响应：先放空壳，再原地替换</h1>
+  <p class="subtitle">LLM 响应是逐 token 流式到达的。Pi 的做法是：start 事件先 push 一个空壳消息到 context，每收到 delta 就用最新的 partial 覆盖最后一条。这让 UI 能实时渲染，同时 context 始终是最新状态。</p>
+
+  <div class="frame">
+  <svg viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+    </defs>
+    <rect width="960" height="540" fill="#faf7f2"/>
+
+    <!-- Time axis -->
+    <text x="40" y="60" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">EVENT</text>
+    <text x="320" y="60" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">context.messages[last] 内容</text>
+    <text x="720" y="60" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">UI 显示</text>
+
+    <line x1="40" y1="76" x2="920" y2="76" stroke="rgba(28,25,23,0.15)" stroke-width="0.8"/>
+
+    <!-- Step 1: start -->
+    <text x="40" y="120" fill="#b5523a" font-size="11" font-family="'Geist Mono', monospace">start</text>
+    <line x1="100" y1="116" x2="120" y2="116" stroke="#b5523a" stroke-width="1" marker-end="url(#arrow)"/>
+    <text x="135" y="120" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">push 空壳</text>
+
+    <rect x="320" y="100" width="360" height="44" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.30)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="340" y="118" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">{ role: "assistant",</text>
+    <text x="340" y="134" fill="#a8a29e" font-size="10" font-family="'Geist Mono', monospace">  content: []  ← 空壳 }</text>
+
+    <rect x="720" y="100" width="180" height="44" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+    <text x="810" y="126" fill="#a8a29e" font-size="11" font-family="'Geist', sans-serif" text-anchor="middle">（空白）</text>
+
+    <line x1="40" y1="158" x2="920" y2="158" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+    <!-- Step 2: text_delta -->
+    <text x="40" y="194" fill="#b5523a" font-size="11" font-family="'Geist Mono', monospace">text_delta</text>
+    <line x1="120" y1="190" x2="140" y2="190" stroke="#b5523a" stroke-width="1" marker-end="url(#arrow)"/>
+    <text x="155" y="194" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">原地替换</text>
+
+    <rect x="320" y="174" width="360" height="44" rx="4" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.2"/>
+    <text x="340" y="192" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">{ content: [</text>
+    <text x="340" y="208" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">  { type:"text", text:"好的..." }</text>
+    <text x="490" y="208" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">] }</text>
+
+    <rect x="720" y="174" width="180" height="44" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+    <text x="810" y="200" fill="#1c1917" font-size="11" font-family="'Geist', sans-serif" text-anchor="middle">好的...</text>
+
+    <line x1="40" y1="232" x2="920" y2="232" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+    <!-- Step 3: toolcall_delta -->
+    <text x="40" y="268" fill="#b5523a" font-size="11" font-family="'Geist Mono', monospace">toolcall_delta</text>
+    <line x1="130" y1="264" x2="150" y2="264" stroke="#b5523a" stroke-width="1" marker-end="url(#arrow)"/>
+    <text x="165" y="268" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">再次原地替换</text>
+
+    <rect x="320" y="248" width="360" height="44" rx="4" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.2"/>
+    <text x="340" y="266" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">{ content: [ text:"好的...",</text>
+    <text x="340" y="282" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">  { type:"toolCall", name:"read" } ] }</text>
+
+    <rect x="720" y="248" width="180" height="44" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+    <text x="810" y="270" fill="#1c1917" font-size="11" font-family="'Geist', sans-serif" text-anchor="middle">好的...</text>
+    <text x="810" y="284" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">+ 工具调用</text>
+
+    <line x1="40" y1="306" x2="920" y2="306" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+    <!-- Step 4: done -->
+    <text x="40" y="342" fill="#b5523a" font-size="11" font-family="'Geist Mono', monospace">done</text>
+    <line x1="80" y1="338" x2="100" y2="338" stroke="#b5523a" stroke-width="1" marker-end="url(#arrow)"/>
+    <text x="115" y="342" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">最终完整消息替换</text>
+
+    <rect x="320" y="322" width="360" height="44" rx="4" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1.4"/>
+    <text x="340" y="340" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">{ content:[...],</text>
+    <text x="340" y="356" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">  stopReason:"toolUse", usage:{...} }</text>
+
+    <rect x="720" y="322" width="180" height="44" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+    <text x="810" y="348" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">完整渲染 ✓</text>
+
+    <!-- Bottom: principle -->
+    <rect x="40" y="412" width="880" height="100" rx="6" fill="rgba(181,82,58,0.05)" stroke="rgba(181,82,58,0.30)" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="60" y="438" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">WHY</text>
+    <text x="60" y="462" fill="#1c1917" font-size="11" font-family="'Instrument Serif', 'Source Han Serif SC', serif" font-style="italic">
+      为什么先 push 空壳再原地替换？
+    </text>
+    <text x="60" y="482" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">
+      · 等全部响应完成才 push → 用户在 LLM 思考的几秒里盯着空白屏幕
+    </text>
+    <text x="60" y="498" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">
+      · 先放空壳、逐 token 替换 → UI 通过 message_update 事件拿到最新部分消息，能做到逐字渲染
+    </text>
+  </svg>
+  </div>
+
+  <div class="footer">
+    <span>PI-AGENT · 项目原理二次整理版</span>
+    <span>260702 · CH03 · TIMELINE</span>
+  </div>
+</div>
+</body>
+</html>

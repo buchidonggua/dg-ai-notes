@@ -1,0 +1,158 @@
+  <svg viewBox="0 0 960 620" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+      <marker id="arrow-red" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+    </defs>
+
+    <rect width="960" height="620" fill="#faf7f2"/>
+
+    <!-- divider -->
+    <line x1="480" y1="20" x2="480" y2="540" stroke="rgba(28,25,23,0.15)" stroke-width="0.8" stroke-dasharray="4,4"/>
+
+    <!-- ===== LEFT: Fire-and-Forget (BAD) ===== -->
+    <rect x="40" y="40" width="400" height="60" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+    <text x="240" y="64" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.14em">✗ 假设：不 await</text>
+    <text x="240" y="84" fill="#57534e" font-size="11" font-family="'Geist', sans-serif"
+          text-anchor="middle">"Fire-and-Forget"（通知完就返回）</text>
+
+    <!-- Agent Loop timeline -->
+    <text x="60" y="140" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">Agent Loop</text>
+    <line x1="60" y1="148" x2="440" y2="148" stroke="#1c1917" stroke-width="1"/>
+
+    <!-- TUI listener timeline -->
+    <text x="60" y="320" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">TUI 监听器</text>
+    <line x1="60" y1="328" x2="440" y2="328" stroke="#1c1917" stroke-width="1"/>
+
+    <!-- emit start (no await) -->
+    <line x1="100" y1="148" x2="100" y2="328" stroke="#b5523a" stroke-width="1" stroke-dasharray="3,2"/>
+    <rect x="76" y="124" width="48" height="16" rx="2" fill="rgba(181,82,58,0.10)"/>
+    <text x="100" y="136" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle">start</text>
+
+    <!-- TUI processing start -->
+    <rect x="100" y="328" width="120" height="32" rx="2" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+    <text x="160" y="348" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">正在渲染 start</text>
+
+    <!-- immediately emit update (without waiting) -->
+    <line x1="140" y1="148" x2="140" y2="328" stroke="#b5523a" stroke-width="1" stroke-dasharray="3,2"/>
+    <rect x="116" y="124" width="48" height="16" rx="2" fill="rgba(181,82,58,0.10)"/>
+    <text x="140" y="136" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle">update</text>
+
+    <!-- update arrives but TUI is still busy -->
+    <text x="240" y="316" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" font-style="italic" text-anchor="middle">
+      ✗ update 来了，但 start 还没处理完
+    </text>
+    <rect x="220" y="328" width="80" height="32" rx="2" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="260" y="348" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">堆积 ✗</text>
+
+    <!-- emit end -->
+    <line x1="180" y1="148" x2="180" y2="328" stroke="#b5523a" stroke-width="1" stroke-dasharray="3,2"/>
+    <rect x="156" y="124" width="48" height="16" rx="2" fill="rgba(181,82,58,0.10)"/>
+    <text x="180" y="136" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle">end</text>
+
+    <!-- More congestion -->
+    <rect x="300" y="328" width="100" height="32" rx="2" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="350" y="348" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">更多堆积 ✗</text>
+
+    <!-- Result label -->
+    <rect x="60" y="430" width="380" height="76" rx="6" fill="rgba(181,82,58,0.05)" stroke="#b5523a" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="80" y="454" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">RESULT</text>
+    <text x="80" y="476" fill="#1c1917" font-size="11" font-family="'Geist', sans-serif">
+      事件顺序错乱、UI 状态不一致、
+    </text>
+    <text x="80" y="492" fill="#1c1917" font-size="11" font-family="'Geist', sans-serif">
+      监听器之间互相踩踏
+    </text>
+
+    <!-- ===== RIGHT: await sync barrier (GOOD) ===== -->
+    <rect x="520" y="40" width="400" height="60" rx="6" fill="rgba(45, 110, 60, 0.06)" stroke="#2d6e3c" stroke-width="1"/>
+    <text x="720" y="64" fill="#2d6e3c" font-size="11" font-weight="600" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.14em">✓ 实际：每次 emit 都 await</text>
+    <text x="720" y="84" fill="#57534e" font-size="11" font-family="'Geist', sans-serif"
+          text-anchor="middle">"同步屏障"（处理完才继续）</text>
+
+    <!-- Agent Loop timeline -->
+    <text x="540" y="140" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">Agent Loop</text>
+    <line x1="540" y1="148" x2="920" y2="148" stroke="#1c1917" stroke-width="1"/>
+
+    <!-- TUI listener timeline -->
+    <text x="540" y="320" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">TUI 监听器</text>
+    <line x1="540" y1="328" x2="920" y2="328" stroke="#1c1917" stroke-width="1"/>
+
+    <!-- emit start WITH await -->
+    <line x1="580" y1="148" x2="580" y2="328" stroke="#2d6e3c" stroke-width="1.2"/>
+    <rect x="556" y="124" width="48" height="16" rx="2" fill="rgba(45,110,60,0.10)"/>
+    <text x="580" y="136" fill="#2d6e3c" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle">start</text>
+
+    <!-- TUI processes start -->
+    <rect x="580" y="328" width="80" height="32" rx="2" fill="rgba(45,110,60,0.06)" stroke="#2d6e3c" stroke-width="1"/>
+    <text x="620" y="348" fill="#2d6e3c" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">处理 start</text>
+
+    <!-- await barrier visualized as block on Agent Loop line -->
+    <rect x="580" y="144" width="80" height="8" fill="#2d6e3c" opacity="0.3"/>
+    <text x="620" y="166" fill="#2d6e3c" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.06em">await</text>
+
+    <!-- emit update (after start done) -->
+    <line x1="680" y1="148" x2="680" y2="328" stroke="#2d6e3c" stroke-width="1.2"/>
+    <rect x="656" y="124" width="48" height="16" rx="2" fill="rgba(45,110,60,0.10)"/>
+    <text x="680" y="136" fill="#2d6e3c" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle">update</text>
+
+    <rect x="680" y="328" width="80" height="32" rx="2" fill="rgba(45,110,60,0.06)" stroke="#2d6e3c" stroke-width="1"/>
+    <text x="720" y="348" fill="#2d6e3c" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">处理 update</text>
+
+    <rect x="680" y="144" width="80" height="8" fill="#2d6e3c" opacity="0.3"/>
+    <text x="720" y="166" fill="#2d6e3c" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.06em">await</text>
+
+    <!-- emit end -->
+    <line x1="780" y1="148" x2="780" y2="328" stroke="#2d6e3c" stroke-width="1.2"/>
+    <rect x="756" y="124" width="48" height="16" rx="2" fill="rgba(45,110,60,0.10)"/>
+    <text x="780" y="136" fill="#2d6e3c" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle">end</text>
+
+    <rect x="780" y="328" width="80" height="32" rx="2" fill="rgba(45,110,60,0.06)" stroke="#2d6e3c" stroke-width="1"/>
+    <text x="820" y="348" fill="#2d6e3c" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">处理 end</text>
+
+    <rect x="780" y="144" width="80" height="8" fill="#2d6e3c" opacity="0.3"/>
+    <text x="820" y="166" fill="#2d6e3c" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.06em">await</text>
+
+    <text x="730" y="280" fill="#2d6e3c" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">
+      ✓ 严格按序、无堆积
+    </text>
+
+    <!-- Result label -->
+    <rect x="540" y="430" width="380" height="76" rx="6" fill="rgba(45,110,60,0.05)" stroke="#2d6e3c" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="560" y="454" fill="#2d6e3c" font-size="10" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">RESULT</text>
+    <text x="560" y="476" fill="#1c1917" font-size="11" font-family="'Geist', sans-serif">
+      事件顺序严格、UI 状态一致、
+    </text>
+    <text x="560" y="492" fill="#1c1917" font-size="11" font-family="'Geist', sans-serif">
+      监听器之间互不干扰
+    </text>
+
+    <!-- Bottom: insight -->
+    <line x1="40" y1="552" x2="920" y2="552" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+
+    <text x="40" y="572" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">DESIGN DECISION</text>
+
+    <text x="40" y="596" fill="#1c1917" font-size="11" font-family="'Instrument Serif', 'Source Han Serif SC', serif" font-style="italic">
+      "emit 不是通知，而是同步协商" —— Agent Loop 在等监听器完全处理完，才发下一个事件。
+    </text>
+    <text x="40" y="612" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">
+      唯一的例外：tool_execution_update（高频更新）会先收集再批量 await，避免每个 token 都阻塞。
+    </text>
+  </svg>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Pi-Agent 四层架构</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --paper: #faf7f2; --ink: #1c1917; --muted: #57534e; --soft: #a8a29e;
+    --rule: rgba(28,25,23,0.10); --accent: #b5523a; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink);
+    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    padding: 3rem 1.5rem 2rem; line-height: 1.5; }
+  .container { max-width: 1080px; margin: 0 auto; }
+  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  h1 { font-family: 'Instrument Serif', 'Source Han Serif SC', serif; font-weight: 400;
+    font-size: 32px; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 2rem; max-width: 64ch; }
+  .frame { background: rgba(28,25,23,0.02); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--soft);
+    letter-spacing: 0.1em; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 1 章 · LAYER STACK</p>
+  <h1>四个核心包，各司其职</h1>
+  <p class="subtitle">Pi 用四个独立包构成完整的编码 Agent 产品。每一层都可以独立使用——你可以只用 pi-ai 调模型，也可以用 pi-agent-core 跑循环，完全不需要碰 CLI。这是 Pi 作为 SDK 的核心价值。</p>
+
+  <div class="frame">
+  <svg viewBox="0 0 960 560" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+    </defs>
+    <rect width="960" height="560" fill="#faf7f2"/>
+
+    <!-- Layer 4: coding-agent (top, focal) -->
+    <rect x="80" y="40" width="800" height="100" rx="8" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.4"/>
+    <rect x="96" y="56" width="120" height="16" rx="2" fill="rgba(181,82,58,0.10)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
+    <text x="156" y="68" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">LAYER 4 · 产品+SDK</text>
+    <text x="120" y="100" fill="#1c1917" font-size="16" font-weight="600" font-family="'Geist', sans-serif">pi-coding-agent</text>
+    <text x="120" y="122" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">系统提示词 · 内置工具 · 会话管理 · 扩展 · CLI</text>
+    <rect x="700" y="92" width="160" height="32" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.20)" stroke-width="0.8"/>
+    <text x="780" y="112" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">createAgentSession()</text>
+
+    <!-- arrow down -->
+    <line x1="480" y1="140" x2="480" y2="168" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+    <text x="496" y="158" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace">依赖</text>
+
+    <!-- Layer 3: pi-tui (right side, parallel) -->
+    <rect x="600" y="172" width="280" height="80" rx="6" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+    <text x="616" y="190" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace" letter-spacing="0.10em">PARALLEL · UI</text>
+    <text x="616" y="212" fill="#1c1917" font-size="14" font-weight="600" font-family="'Geist', sans-serif">pi-tui</text>
+    <text x="616" y="230" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">差分渲染 · 组件系统 · Markdown</text>
+    <text x="616" y="244" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">~600 行 · 不依赖任何 pi-xxx</text>
+
+    <!-- Layer 2: agent-core (middle, focal) -->
+    <rect x="80" y="172" width="480" height="100" rx="8" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.4"/>
+    <rect x="96" y="188" width="120" height="16" rx="2" fill="rgba(181,82,58,0.10)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
+    <text x="156" y="200" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">LAYER 2 · 引擎</text>
+    <text x="120" y="232" fill="#1c1917" font-size="16" font-weight="600" font-family="'Geist', sans-serif">pi-agent-core</text>
+    <text x="120" y="254" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">AgentLoop · 工具系统 · 事件流 · Session · Compaction</text>
+
+    <line x1="480" y1="272" x2="480" y2="300" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+    <text x="496" y="290" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace">依赖</text>
+
+    <!-- Layer 1: pi-ai (bottom) -->
+    <rect x="80" y="304" width="800" height="100" rx="8" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.4"/>
+    <rect x="96" y="320" width="120" height="16" rx="2" fill="rgba(181,82,58,0.10)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
+    <text x="156" y="332" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">LAYER 1 · 模型</text>
+    <text x="120" y="364" fill="#1c1917" font-size="16" font-weight="600" font-family="'Geist', sans-serif">pi-ai</text>
+    <text x="120" y="386" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">统一 API · 上下文交接 · 流式 · Token 追踪 · 30+ 提供商</text>
+
+    <!-- Bottom: 4 run modes -->
+    <line x1="80" y1="438" x2="880" y2="438" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+    <text x="80" y="460" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">FOUR RUN MODES</text>
+
+    <g transform="translate(80, 472)">
+      <rect width="180" height="44" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.20)" stroke-width="0.8"/>
+      <text x="90" y="20" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">交互模式</text>
+      <text x="90" y="34" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">pi</text>
+    </g>
+    <g transform="translate(280, 472)">
+      <rect width="180" height="44" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.20)" stroke-width="0.8"/>
+      <text x="90" y="20" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">print/JSON</text>
+      <text x="90" y="34" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">pi -p "..."</text>
+    </g>
+    <g transform="translate(480, 472)">
+      <rect width="180" height="44" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.20)" stroke-width="0.8"/>
+      <text x="90" y="20" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">RPC 模式</text>
+      <text x="90" y="34" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">stdin/stdout JSON</text>
+    </g>
+    <g transform="translate(680, 472)">
+      <rect width="180" height="44" rx="4" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+      <text x="90" y="20" fill="#b5523a" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">SDK 模式</text>
+      <text x="90" y="34" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">嵌入自己的应用</text>
+    </g>
+
+    <text x="80" y="540" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
+      依赖方向永远向上——底层对上层一无所知。这是分层架构的核心承诺。
+    </text>
+  </svg>
+  </div>
+
+  <div class="footer">
+    <span>PI-AGENT · 项目原理二次整理版</span>
+    <span>260702 · CH01 · LAYER STACK</span>
+  </div>
+</div>
+</body>
+</html>

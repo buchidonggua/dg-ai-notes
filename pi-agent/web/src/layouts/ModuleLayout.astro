@@ -1,0 +1,213 @@
+---
+// src/layouts/ModuleLayout.astro
+// Composes: ProgressRail + TopBar + LeftTOC + main content + RightOutline
+import BaseLayout from './BaseLayout.astro';
+import TopBar from '../components/TopBar.astro';
+import LeftTOC from '../components/LeftTOC.astro';
+import RightOutline from '../components/RightOutline.astro';
+import PrevNextNav from '../components/PrevNextNav.astro';
+import ProgressRail from '../components/ProgressRail.astro';
+import LanguageSwitcher from '../components/LanguageSwitcher.astro';
+import ChapterFooter from '../components/chapter/ChapterFooter.astro';
+import CodeBlock from '../components/CodeBlock.astro';
+import DiagramLightbox from '../components/DiagramLightbox.astro';
+import type { ModuleEntry } from '../utils/collection';
+import { getModuleStats, getCounterpartUrl } from '../utils/collection';
+
+interface Props { entry: ModuleEntry; }
+const { entry } = Astro.props;
+const { data } = entry;
+const isPython = data.variant === 'python';
+const variantSuffix = isPython ? ' · Python' : '';
+const stats = getModuleStats(entry);
+const tsCounterpartUrl = isPython ? getCounterpartUrl(entry) : null;
+---
+
+<BaseLayout title={`${data.module} · ${data.title}${variantSuffix} | Pi Agent Book`} description={data.summary}>
+  <ProgressRail />
+  <TopBar entry={entry} />
+
+  <div class="page-grid">
+    <aside class="toc-left">
+      <LeftTOC currentEntry={entry} />
+    </aside>
+
+    <main class="prose module-main">
+      <header class="module-header">
+        <div class="module-eyebrow">{data.module}</div>
+        <h1>{data.title}</h1>
+        {stats.wordCount > 0 && (
+          <div class="module-meta">
+            {stats.wordCount}字
+            {stats.codeLines > 0 && <> · 含 {stats.codeLines} 行代码</>}
+            <> · 约 {stats.readMinutes} 分钟</>
+          </div>
+        )}
+        {data.counterpart && <LanguageSwitcher entry={entry} />}
+        {isPython && <div class="module-variant-badge">Python 转写 · 原作 TypeScript</div>}
+      </header>
+
+      {data.diagrams && data.diagrams.length > 0 && (
+        <script
+          is:inline
+          type="application/json"
+          id="diagram-anchors"
+          set:html={JSON.stringify(
+            Object.fromEntries(data.diagrams.map(d => [d.id, d.anchors || {}]))
+          )}
+        />
+      )}
+      <script is:inline src="/assets/js/diagram-linker.js" defer></script>
+
+      <article id="module-content">
+        {isPython && (
+          <aside class="python-notice">
+            <strong>Python 转写版。</strong> 本文是 TypeScript 原版的 Python 转写，核心设计与原版一一对应，部分生态库按 Python 习惯调整。
+            {tsCounterpartUrl && <a href={tsCounterpartUrl}>查看 TypeScript 原版 →</a>}
+          </aside>
+        )}
+        <slot />
+        <CodeBlock />
+      </article>
+
+      <ChapterFooter entry={entry} />
+
+      <PrevNextNav entry={entry} />
+    </main>
+
+    <aside class="outline-right">
+      <RightOutline entry={entry} />
+    </aside>
+  </div>
+
+  <!-- 全局 Lightbox + SVG 内联注入（挂载一次，所有 diagram 共享） -->
+  <DiagramLightbox />
+</BaseLayout>
+
+<style>
+  .page-grid {
+    display: grid;
+    grid-template-columns: var(--toc-width) minmax(0, 1fr) var(--toc-width);
+    column-gap: calc(var(--col-gap) * 2);
+    row-gap: var(--col-gap);
+    max-width: var(--page-max);
+    margin: 0 auto;
+    padding: var(--space-8) var(--pad-x);
+  }
+
+  .module-main {
+    width: var(--read-width);
+    max-width: 100%;
+    margin-inline: auto;
+  }
+
+  /* 侧栏视觉身份：微妙的"面板"体感，消除压迫感 */
+  .toc-left {
+    background: var(--paper-raised);
+    border-right: 1px solid var(--rule);
+    border-radius: var(--radius-md);
+  }
+  .outline-right {
+    background: var(--paper-raised);
+    border-left: 1px solid var(--rule);
+    border-radius: var(--radius-md);
+  }
+
+  .module-header {
+    margin-bottom: var(--space-12);
+  }
+  .module-eyebrow {
+    font-family: var(--font-mono);
+    font-size: var(--fs-small);
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: var(--space-2);
+  }
+  .module-meta {
+    margin-top: var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--fs-small);
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+  .module-variant-badge {
+    display: inline-block;
+    margin-top: var(--space-4);
+    padding: var(--space-1) var(--space-3);
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: var(--border-w) solid var(--accent);
+    border-radius: 9999px;
+    font-family: var(--font-mono);
+    font-size: var(--fs-small);
+    letter-spacing: 0.04em;
+  }
+  .python-notice {
+    margin: 0 0 var(--space-8);
+    padding: var(--space-4) var(--space-5);
+    border-left: 4px solid var(--accent);
+    background: var(--paper-raised);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-prose);
+    color: var(--ink);
+  }
+  .python-notice strong {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .python-notice a {
+    margin-left: var(--space-2);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color var(--dur-base) var(--ease);
+  }
+  .python-notice a:hover {
+    border-bottom-color: var(--accent);
+  }
+
+  /* The h1 in module header should not have the huge top-margin from prose */
+  .module-header h1 {
+    margin-top: 0;
+  }
+
+  @media (max-width: 1279px) {
+    .page-grid {
+      grid-template-columns: var(--toc-width) 1fr;
+    }
+    .outline-right { display: none; }
+  }
+  @media (max-width: 767px) {
+    .page-grid {
+      grid-template-columns: 1fr;
+    }
+    .toc-left { display: none; }
+    body.toc-open .toc-left {
+      display: block;
+      position: fixed;
+      top: var(--topbar-h);
+      left: 0;
+      bottom: 0;
+      width: 80%;
+      max-width: 320px;
+      background: var(--paper-raised);
+      z-index: 100;
+      padding: var(--space-4);
+      box-shadow: var(--shadow-3);
+      overflow-y: auto;
+    }
+  }
+
+  /* S2 联动高亮（由 diagram-linker.js 控制 .is-highlighted / .is-active 类）*/
+  :global(.is-highlighted) {
+    outline: var(--hl-outline-w) solid var(--accent) !important;
+    outline-offset: var(--hl-outline-offset);
+    transition: outline var(--dur-fast) var(--ease);
+  }
+  :global([data-anchor].is-active) {
+    filter: drop-shadow(0 0 var(--hl-glow) var(--accent));
+  }
+</style>

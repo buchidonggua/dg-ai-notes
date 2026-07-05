@@ -1,0 +1,111 @@
+  <svg viewBox="0 0 960 580" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+    </defs>
+
+    <rect width="960" height="580" fill="#faf7f2"/>
+
+    <!-- Top: AssistantMessage node -->
+    <rect x="320" y="24" width="320" height="64" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+    <text x="480" y="48" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">模型返回 AssistantMessage</text>
+    <text x="480" y="68" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace"
+          text-anchor="middle">message.stopReason</text>
+
+    <line x1="480" y1="88" x2="480" y2="116" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- Decision diamond -->
+    <polygon points="480,120 600,180 480,240 360,180"
+             fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.2"/>
+    <text x="480" y="176" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">检查 stopReason</text>
+    <text x="480" y="194" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          text-anchor="middle">switch</text>
+
+    <!-- Three branches -->
+    <!-- Left: toolUse -->
+    <line x1="360" y1="180" x2="200" y2="180" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+    <rect x="120" y="168" width="76" height="24" rx="2" fill="rgba(181,82,58,0.10)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
+    <text x="158" y="184" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">toolUse</text>
+
+    <line x1="158" y1="192" x2="158" y2="260" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <rect x="48" y="264" width="220" height="76" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+    <text x="158" y="288" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">继续转</text>
+    <text x="158" y="306" fill="#57534e" font-size="9" font-family="'Geist', sans-serif"
+          text-anchor="middle">执行这批工具</text>
+    <text x="158" y="322" fill="#57534e" font-size="9" font-family="'Geist', sans-serif"
+          text-anchor="middle">把结果喂回模型</text>
+
+    <!-- loop back -->
+    <path d="M 48 302 Q 16 302 16 200 Q 16 56 320 56"
+          fill="none" stroke="#b5523a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow-accent)"/>
+    <rect x="20" y="170" width="60" height="14" rx="2" fill="#faf7f2"/>
+    <text x="50" y="180" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.06em">下一 Turn</text>
+
+    <!-- Middle: stop / length -->
+    <line x1="480" y1="240" x2="480" y2="280" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+    <rect x="400" y="268" width="160" height="24" rx="2" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+    <text x="480" y="284" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">stop · length</text>
+
+    <line x1="480" y1="292" x2="480" y2="320" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <rect x="370" y="324" width="220" height="76" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+    <text x="480" y="348" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">准备停</text>
+    <text x="480" y="366" fill="#57534e" font-size="9" font-family="'Geist', sans-serif"
+          text-anchor="middle">检查 followUp / pending 队列</text>
+    <text x="480" y="382" fill="#57534e" font-size="9" font-family="'Geist', sans-serif"
+          text-anchor="middle">两个都空 → 正常退出</text>
+
+    <line x1="480" y1="400" x2="480" y2="448" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+    <rect x="380" y="452" width="200" height="32" rx="4" fill="#faf7f2" stroke="#b5523a" stroke-width="1"/>
+    <text x="480" y="472" fill="#b5523a" font-size="11" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">agent_end（正常）</text>
+
+    <!-- Right: error / aborted -->
+    <line x1="600" y1="180" x2="760" y2="180" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+    <rect x="768" y="168" width="100" height="24" rx="2" fill="rgba(181,82,58,0.10)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
+    <text x="818" y="184" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">error · aborted</text>
+
+    <line x1="818" y1="192" x2="818" y2="260" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <rect x="692" y="264" width="252" height="76" rx="6" fill="rgba(28,25,23,0.05)" stroke="#1c1917" stroke-width="1.2"/>
+    <text x="818" y="288" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">硬停止（fail fast）</text>
+    <text x="818" y="306" fill="#57534e" font-size="9" font-family="'Geist', sans-serif"
+          text-anchor="middle">立即退出整个循环</text>
+    <text x="818" y="322" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif"
+          text-anchor="middle">不检查 followUp</text>
+
+    <line x1="818" y1="340" x2="818" y2="448" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+    <rect x="718" y="452" width="200" height="32" rx="4" fill="#faf7f2" stroke="#b5523a" stroke-width="1.2"/>
+    <text x="818" y="472" fill="#b5523a" font-size="11" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">agent_end（硬停）</text>
+
+    <!-- source annotation -->
+    <line x1="40" y1="510" x2="920" y2="510" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+    <text x="40" y="530" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">SOURCE OF stopReason</text>
+
+    <rect x="40" y="540" width="240" height="24" rx="2" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+    <text x="56" y="556" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif">来自模型 API</text>
+    <text x="180" y="556" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace">stop·length·toolUse</text>
+
+    <rect x="320" y="540" width="280" height="24" rx="2" fill="rgba(181,82,58,0.06)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
+    <text x="336" y="556" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif">框架流式层注入</text>
+    <text x="448" y="556" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace">error·aborted</text>
+
+    <text x="640" y="556" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">关键规则：模型不会说"我完成了"——</text>
+    <text x="640" y="568" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">没有 ToolCall 即视为本轮结束</text>
+  </svg>

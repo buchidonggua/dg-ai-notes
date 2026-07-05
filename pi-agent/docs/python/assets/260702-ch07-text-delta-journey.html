@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>text_delta 的完整旅程</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --paper: #faf7f2; --ink: #1c1917; --muted: #57534e; --soft: #a8a29e;
+    --rule: rgba(28,25,23,0.10); --accent: #b5523a; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink);
+    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    padding: 3rem 1.5rem 2rem; line-height: 1.5; }
+  .container { max-width: 1080px; margin: 0 auto; }
+  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  h1 { font-family: 'Instrument Serif', 'Source Han Serif SC', serif; font-weight: 400;
+    font-size: 32px; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 2rem; max-width: 64ch; }
+  .frame { background: rgba(28,25,23,0.02); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--soft);
+    letter-spacing: 0.1em; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 7 章 · CROSS-LAYER JOURNEY</p>
+  <h1>追踪一个 text_delta 的完整旅程</h1>
+  <p class="subtitle">用户看到 AI 一个字一个字蹦出来——背后是一个 token 从 LLM 网络流穿越 5 层到达终端屏幕的过程。每一层只关心自己的事。</p>
+
+  <div class="frame">
+  <svg viewBox="0 0 960 580" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+    </defs>
+    <rect width="960" height="580" fill="#faf7f2"/>
+
+    <!-- Title -->
+    <text x="480" y="40" fill="#b5523a" font-size="11" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.14em">TOKEN: "你"</text>
+
+    <!-- Layer 1: LLM SSE -->
+    <g>
+      <rect x="40" y="60" width="880" height="76" rx="6" fill="rgba(28,25,23,0.02)" stroke="rgba(28,25,23,0.20)" stroke-width="1"/>
+      <text x="60" y="80" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            letter-spacing="0.14em">LAYER 1 · LLM SSE 网络流</text>
+      <rect x="60" y="92" width="840" height="32" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+      <text x="80" y="112" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">data: {"type":"text_delta","delta":"你",...}</text>
+    </g>
+
+    <line x1="480" y1="136" x2="480" y2="164" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- Layer 2: AI EventStream -->
+    <g>
+      <rect x="40" y="168" width="880" height="76" rx="6" fill="rgba(28,25,23,0.02)" stroke="rgba(28,25,23,0.20)" stroke-width="1"/>
+      <text x="60" y="188" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            letter-spacing="0.14em">LAYER 2 · AI 层 EVENTSTREAM.PUSH()</text>
+      <rect x="60" y="200" width="840" height="32" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+      <text x="80" y="220" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">AssistantMessageEvent { type: "text_delta", delta: "你", partial: ... }</text>
+    </g>
+
+    <line x1="480" y1="244" x2="480" y2="272" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- Layer 3: Agent Loop conversion -->
+    <g>
+      <rect x="40" y="276" width="880" height="76" rx="6" fill="rgba(181,82,58,0.04)" stroke="#b5523a" stroke-width="1"/>
+      <text x="60" y="296" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+            letter-spacing="0.14em">LAYER 3 · AGENT LOOP 事件转换</text>
+      <rect x="60" y="308" width="840" height="32" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+      <text x="80" y="328" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">emit("message_update", { message: partial })</text>
+      <text x="500" y="328" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">→ 多种 delta 统一为 message_update</text>
+    </g>
+
+    <line x1="480" y1="352" x2="480" y2="380" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- Layer 4: Agent.processEvents -->
+    <g>
+      <rect x="40" y="384" width="880" height="76" rx="6" fill="rgba(181,82,58,0.04)" stroke="#b5523a" stroke-width="1"/>
+      <text x="60" y="404" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+            letter-spacing="0.14em">LAYER 4 · AGENT.PROCESSEVENTS()</text>
+      <rect x="60" y="416" width="840" height="32" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+      <text x="80" y="436" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">streamingMessage = partial → await listeners</text>
+      <text x="500" y="436" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">→ 同步屏障：等监听器处理完</text>
+    </g>
+
+    <line x1="480" y1="460" x2="480" y2="488" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- Layer 5: TUI renderer -->
+    <g>
+      <rect x="40" y="492" width="880" height="76" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.2"/>
+      <text x="60" y="512" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+            letter-spacing="0.14em">LAYER 5 · TUI 监听器（终端渲染）</text>
+      <rect x="60" y="524" width="840" height="32" rx="4" fill="#ffffff" stroke="#b5523a" stroke-width="1"/>
+      <text x="80" y="544" fill="#b5523a" font-size="10" font-family="'Geist', sans-serif">提取 delta="你" → 写入终端回滚缓冲区 → 用户看到"你"出现</text>
+    </g>
+  </svg>
+  </div>
+
+  <div class="footer">
+    <span>PI-AGENT · 项目原理二次整理版</span>
+    <span>260702 · CH07 · CROSS-LAYER JOURNEY</span>
+  </div>
+</div>
+</body>
+</html>

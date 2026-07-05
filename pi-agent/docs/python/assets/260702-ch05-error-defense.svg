@@ -1,0 +1,88 @@
+  <svg viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+    </defs>
+    <rect width="960" height="540" fill="#faf7f2"/>
+
+    <!-- Top: error types -->
+    <text x="40" y="40" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">POSSIBLE ERRORS</text>
+
+    <rect x="40" y="56" width="200" height="32" rx="4" fill="rgba(181,82,58,0.06)" stroke="rgba(181,82,58,0.40)" stroke-width="0.8"/>
+    <text x="140" y="76" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">网络断 / API 错误</text>
+
+    <rect x="260" y="56" width="200" height="32" rx="4" fill="rgba(181,82,58,0.06)" stroke="rgba(181,82,58,0.40)" stroke-width="0.8"/>
+    <text x="360" y="76" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">用户主动中止</text>
+
+    <rect x="480" y="56" width="200" height="32" rx="4" fill="rgba(181,82,58,0.06)" stroke="rgba(181,82,58,0.40)" stroke-width="0.8"/>
+    <text x="580" y="76" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">工具执行抛异常</text>
+
+    <rect x="700" y="56" width="220" height="32" rx="4" fill="rgba(181,82,58,0.06)" stroke="rgba(181,82,58,0.40)" stroke-width="0.8"/>
+    <text x="810" y="76" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">权限拦截 / 参数校验失败</text>
+
+    <line x1="480" y1="100" x2="480" y2="128" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- ===== Layer 1: StreamFn contract ===== -->
+    <rect x="80" y="132" width="800" height="100" rx="8" fill="rgba(181,82,58,0.04)" stroke="#b5523a" stroke-width="1.2"/>
+    <rect x="80" y="132" width="800" height="32" rx="8" fill="rgba(181,82,58,0.10)"/>
+    <text x="100" y="152" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">LAYER 1 · STREAMFN 契约（源头就不抛）</text>
+    <text x="100" y="180" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">
+      翻译器的 catch 块把异常编码成事件
+    </text>
+    <text x="100" y="200" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">
+      catch (error) { output.stopReason = signal.aborted ? "aborted" : "error";
+    </text>
+    <text x="100" y="216" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">
+      stream.push({ type: "error", reason: output.stopReason, error }); }
+    </text>
+
+    <line x1="480" y1="232" x2="480" y2="260" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+    <text x="496" y="248" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace">漏网的</text>
+
+    <!-- ===== Layer 2: 工具错误编码 ===== -->
+    <rect x="80" y="264" width="800" height="100" rx="8" fill="rgba(181,82,58,0.04)" stroke="#b5523a" stroke-width="1.2"/>
+    <rect x="80" y="264" width="800" height="32" rx="8" fill="rgba(181,82,58,0.10)"/>
+    <text x="100" y="284" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">LAYER 2 · 工具错误编码（异常变消息）</text>
+    <text x="100" y="312" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">
+      工具的 try-catch 把异常包装成 ToolResultMessage
+    </text>
+    <text x="100" y="332" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">
+      { role: "toolResult", isError: true, content: [{ text: error.message }] }
+    </text>
+    <text x="100" y="350" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
+      工具执行失败 → 模型看到"工具出错了"消息 → 自己决定下一步（道歉/重试/换路径）
+    </text>
+
+    <line x1="480" y1="364" x2="480" y2="392" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+    <text x="496" y="380" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace">兜底</text>
+
+    <!-- ===== Layer 3: Agent 兜底 ===== -->
+    <rect x="80" y="396" width="800" height="100" rx="8" fill="rgba(181,82,58,0.04)" stroke="#b5523a" stroke-width="1.2"/>
+    <rect x="80" y="396" width="800" height="32" rx="8" fill="rgba(181,82,58,0.10)"/>
+    <text x="100" y="416" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">LAYER 3 · AGENT 兜底（最后的保护网）</text>
+    <text x="100" y="444" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">
+      Loop 顶层 try-catch 防止任何漏网异常炸毁进程
+    </text>
+    <text x="100" y="464" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">
+      try { runLoop(...) } catch { emit("agent_end", { error }) }
+    </text>
+    <text x="100" y="482" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
+      无论如何都发 agent_end 事件，外部消费者不会卡死
+    </text>
+
+    <!-- Bottom principle -->
+    <line x1="40" y1="510" x2="920" y2="510" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+    <text x="40" y="530" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">PRINCIPLE</text>
+    <text x="120" y="530" fill="#1c1917" font-size="11" font-family="'Instrument Serif', 'Source Han Serif SC', serif" font-style="italic">
+      错误不是异常，而是消息流中的一种数据。循环永不打断。
+    </text>
+  </svg>

@@ -1,0 +1,143 @@
+---
+// src/components/LanguageSwitcher.astro
+// Task 5: UI shell — renders TS/Python toggle with current variant highlighted.
+// Task 9: wires up localStorage persistence (key: pi-agent-book:lang),
+//           aria-disabled tab handling, and arrow-key keyboard navigation.
+//
+// Auto-redirect is intentionally NOT implemented: the brief specifies only
+// "click → navigate + save preference". Silent redirects would surprise readers
+// who land on a deep link. The reader's preference is honored by ModuleLink
+// and PrevNextNav (which rewrite in-page links client-side).
+import { getCounterpartUrl, getVariantUrl, type ModuleEntry } from '../utils/collection';
+
+interface Props { entry: ModuleEntry; }
+const { entry } = Astro.props;
+const isPython = entry.data.variant === 'python';
+const counterpartUrl = getCounterpartUrl(entry);
+const currentUrl = getVariantUrl(entry);
+
+// TS target = the TS variant URL (current if we're on TS, counterpart if we're on PY)
+const tsTarget = isPython ? counterpartUrl! : currentUrl;
+// PY target = the Python variant URL (current if we're on PY, counterpart if we're on TS)
+const pyTarget = isPython ? currentUrl : counterpartUrl;
+
+// If there is no counterpart at all, the whole switcher is hidden server-side
+// (ModuleLayout already gates on data.counterpart, but double-check).
+const hasPython = Boolean(pyTarget);
+---
+
+{(hasPython || isPython) && (
+  <nav
+    class="lang-switcher"
+    role="tablist"
+    aria-label="语言版本"
+    data-lang-switcher
+  >
+    <a
+      class={`lang-btn ${!isPython ? 'is-active' : ''}`}
+      role="tab"
+      id="lang-tab-ts"
+      aria-selected={!isPython}
+      aria-controls="module-content"
+      tabindex={!isPython ? 0 : -1}
+      href={tsTarget}
+      data-variant="ts"
+    >
+      TypeScript
+    </a>
+    <span class="lang-sep" aria-hidden="true">/</span>
+    <a
+      class={`lang-btn ${isPython ? 'is-active' : ''}`}
+      role="tab"
+      id="lang-tab-py"
+      aria-selected={isPython}
+      aria-controls="module-content"
+      tabindex={isPython ? 0 : -1}
+      href={pyTarget || '#'}
+      data-variant="python"
+      aria-disabled={!hasPython && !isPython}
+    >
+      Python
+    </a>
+  </nav>
+)}
+
+<script>
+  // Persist language preference on click + WAI-ARIA tab keyboard navigation.
+  const STORAGE_KEY = 'pi-agent-book:lang';
+
+  document.querySelectorAll<HTMLElement>('[data-lang-switcher]').forEach((nav) => {
+    const tabs = Array.from(nav.querySelectorAll<HTMLAnchorElement>('a[role="tab"]'));
+    if (tabs.length === 0) return;
+
+    // Click → save preference (navigation happens natively via <a href>)
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const lang = tab.dataset.variant;
+        if (lang === 'ts' || lang === 'python') {
+          try { localStorage.setItem(STORAGE_KEY, lang); } catch { /* noop */ }
+        }
+      });
+    });
+
+    // Arrow-key navigation between tabs (WAI-ARIA Tabs pattern)
+    nav.addEventListener('keydown', (e) => {
+      const currentIdx = tabs.findIndex((t) => t === document.activeElement);
+      if (currentIdx === -1) return;
+      let nextIdx = -1;
+      if (e.key === 'ArrowRight') nextIdx = (currentIdx + 1) % tabs.length;
+      else if (e.key === 'ArrowLeft') nextIdx = (currentIdx - 1 + tabs.length) % tabs.length;
+      else if (e.key === 'Home') nextIdx = 0;
+      else if (e.key === 'End') nextIdx = tabs.length - 1;
+      if (nextIdx >= 0) {
+        e.preventDefault();
+        const target = tabs[nextIdx];
+        // Skip disabled tabs
+        if (target.getAttribute('aria-disabled') === 'true') return;
+        target.focus();
+        // Optionally activate on keyboard select — let Enter/click handle nav
+      }
+    });
+  });
+</script>
+
+<style>
+  .lang-switcher {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--fs-small);
+    margin-top: var(--space-4);
+  }
+  .lang-btn {
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-sm);
+    color: var(--muted);
+    text-decoration: none;
+    transition: all var(--dur-fast) var(--ease);
+    border: var(--border-w) solid transparent;
+    cursor: pointer;
+  }
+  .lang-btn:hover {
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .lang-btn:focus-visible {
+    outline: var(--outline-w) solid var(--accent);
+    outline-offset: var(--outline-offset);
+  }
+  .lang-btn.is-active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: var(--accent);
+    font-weight: 500;
+  }
+  .lang-btn[aria-disabled="true"] {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  .lang-sep {
+    color: var(--soft);
+  }
+</style>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ThinkingLevel：五级思考刻度</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --paper: #faf7f2; --ink: #1c1917; --muted: #57534e; --soft: #a8a29e;
+    --rule: rgba(28,25,23,0.10); --accent: #b5523a; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink);
+    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    padding: 3rem 1.5rem 2rem; line-height: 1.5; }
+  .container { max-width: 1080px; margin: 0 auto; }
+  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  h1 { font-family: 'Instrument Serif', 'Source Han Serif SC', serif; font-weight: 400;
+    font-size: 32px; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 2rem; max-width: 64ch; }
+  .frame { background: rgba(28,25,23,0.02); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--soft);
+    letter-spacing: 0.1em; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 4 章 · NUMBER LINE</p>
+  <h1>ThinkingLevel：统一思考刻度</h1>
+  <p class="subtitle">不同 Provider 对"让模型深度思考"的参数完全不同——Anthropic 给 token 预算、OpenAI 给努力程度、Google 用 thinkingConfig。Pi 定义了一套统一的 6 级枚举，让上层只说 reasoning: "high"，翻译器自己查表翻译。</p>
+
+  <div class="frame">
+  <svg viewBox="0 0 960 560" xmlns="http://www.w3.org/2000/svg">
+    <rect width="960" height="560" fill="#faf7f2"/>
+
+    <!-- Pi unified axis -->
+    <text x="40" y="60" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">PI UNIFIED · ThinkingLevel</text>
+
+    <line x1="60" y1="120" x2="900" y2="120" stroke="#1c1917" stroke-width="1.2"/>
+
+    <!-- Tick marks and labels -->
+    <g>
+      <line x1="80" y1="116" x2="80" y2="124" stroke="#1c1917" stroke-width="1"/>
+      <circle cx="80" cy="120" r="4" fill="rgba(28,25,23,0.20)"/>
+      <text x="80" y="100" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">off</text>
+      <text x="80" y="148" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">不思考</text>
+    </g>
+    <g>
+      <line x1="236" y1="116" x2="236" y2="124" stroke="#1c1917" stroke-width="1"/>
+      <circle cx="236" cy="120" r="4" fill="rgba(181,82,58,0.30)"/>
+      <text x="236" y="100" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">minimal</text>
+      <text x="236" y="148" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">1024 tk</text>
+    </g>
+    <g>
+      <line x1="392" y1="116" x2="392" y2="124" stroke="#1c1917" stroke-width="1"/>
+      <circle cx="392" cy="120" r="4" fill="rgba(181,82,58,0.50)"/>
+      <text x="392" y="100" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">low</text>
+      <text x="392" y="148" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">2048 tk</text>
+    </g>
+    <g>
+      <line x1="548" y1="116" x2="548" y2="124" stroke="#1c1917" stroke-width="1"/>
+      <circle cx="548" cy="120" r="4" fill="rgba(181,82,58,0.70)"/>
+      <text x="548" y="100" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">medium</text>
+      <text x="548" y="148" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">8192 tk</text>
+    </g>
+    <g>
+      <line x1="704" y1="116" x2="704" y2="124" stroke="#1c1917" stroke-width="1"/>
+      <circle cx="704" cy="120" r="5" fill="#b5523a"/>
+      <text x="704" y="100" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">high</text>
+      <text x="704" y="148" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">16384 tk</text>
+    </g>
+    <g>
+      <line x1="860" y1="116" x2="860" y2="124" stroke="#1c1917" stroke-width="1"/>
+      <circle cx="860" cy="120" r="4" fill="#b5523a"/>
+      <text x="860" y="100" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">xhigh</text>
+      <text x="860" y="148" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">模型最大值</text>
+    </g>
+
+    <!-- Translation arrows down -->
+    <text x="40" y="200" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">PROVIDER TRANSLATIONS</text>
+
+    <line x1="704" y1="124" x2="704" y2="184" stroke="#57534e" stroke-width="0.8" stroke-dasharray="3,2"/>
+    <line x1="704" y1="184" x2="200" y2="220" stroke="#57534e" stroke-width="0.8" stroke-dasharray="3,2"/>
+    <line x1="704" y1="184" x2="480" y2="220" stroke="#57534e" stroke-width="0.8" stroke-dasharray="3,2"/>
+    <line x1="704" y1="184" x2="760" y2="220" stroke="#57534e" stroke-width="0.8" stroke-dasharray="3,2"/>
+
+    <rect x="704" y="170" width="60" height="20" rx="2" fill="#faf7f2"/>
+    <text x="734" y="184" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">查表翻译</text>
+
+    <!-- Three providers -->
+    <g>
+      <rect x="60" y="224" width="280" height="120" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="60" y="224" width="280" height="24" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="200" y="240" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Anthropic</text>
+
+      <text x="76" y="270" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">"high" 对应参数：</text>
+      <rect x="76" y="280" width="248" height="50" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.15)" stroke-width="0.6"/>
+      <text x="84" y="298" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">params.thinking = {</text>
+      <text x="92" y="314" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">type: "enabled",</text>
+      <text x="92" y="326" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">budget_tokens: 16384</text>
+      <text x="84" y="338" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">}</text>
+    </g>
+
+    <g>
+      <rect x="340" y="224" width="280" height="120" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="340" y="224" width="280" height="24" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="480" y="240" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">OpenAI</text>
+
+      <text x="356" y="270" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">"high" 对应参数：</text>
+      <rect x="356" y="280" width="248" height="50" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.15)" stroke-width="0.6"/>
+      <text x="364" y="298" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">params = {</text>
+      <text x="372" y="314" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">reasoning_effort:</text>
+      <text x="372" y="326" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">"high"</text>
+      <text x="364" y="338" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">}</text>
+    </g>
+
+    <g>
+      <rect x="620" y="224" width="280" height="120" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="620" y="224" width="280" height="24" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="760" y="240" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Google Gemini</text>
+
+      <text x="636" y="270" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">"high" 对应参数：</text>
+      <rect x="636" y="280" width="248" height="50" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.15)" stroke-width="0.6"/>
+      <text x="644" y="298" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">config.thinkingConfig = {</text>
+      <text x="652" y="314" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">includeThoughts: true,</text>
+      <text x="652" y="326" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">thinkingLevel: "high"</text>
+      <text x="644" y="338" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">}</text>
+    </g>
+
+    <!-- clamp策略 -->
+    <line x1="40" y1="380" x2="920" y2="380" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+    <text x="40" y="404" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">CLAMP STRATEGY · 不支持时的回退</text>
+
+    <text x="500" y="430" fill="#1c1917" font-size="11" font-family="'Geist', sans-serif" text-anchor="middle">
+      请求 "xhigh" 但模型只支持到 "high"
+    </text>
+
+    <g transform="translate(280, 446)">
+      <rect width="120" height="32" rx="4" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+      <text x="60" y="20" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">先向上找</text>
+    </g>
+    <text x="416" y="466" fill="#57534e" font-size="14" font-family="'Geist', sans-serif">→</text>
+    <g transform="translate(440, 446)">
+      <rect width="120" height="32" rx="4" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+      <text x="60" y="20" fill="#b5523a" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">找到 → 用</text>
+    </g>
+
+    <text x="580" y="466" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">/</text>
+
+    <g transform="translate(600, 446)">
+      <rect width="120" height="32" rx="4" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+      <text x="60" y="20" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">没有 → 向下找</text>
+    </g>
+    <text x="736" y="466" fill="#57534e" font-size="14" font-family="'Geist', sans-serif">→</text>
+    <g transform="translate(760, 446)">
+      <rect width="120" height="32" rx="4" fill="rgba(45,110,60,0.06)" stroke="#2d6e3c" stroke-width="1"/>
+      <text x="60" y="20" fill="#2d6e3c" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">"high" 兜底</text>
+    </g>
+
+    <text x="40" y="514" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
+      思考更多通常比思考更少安全——所以先向上找。这是 clampThinkingLevel() 的策略。
+    </text>
+    <text x="40" y="530" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
+      每个 Model 对象自带 thinkingLevelMap（翻译表），声明"我这台模型每个级别对应什么参数"。
+    </text>
+  </svg>
+  </div>
+
+  <div class="footer">
+    <span>PI-AGENT · 项目原理二次整理版</span>
+    <span>260702 · CH04 · NUMBER LINE</span>
+  </div>
+</div>
+</body>
+</html>

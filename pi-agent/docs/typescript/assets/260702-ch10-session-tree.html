@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Session Tree：append-only 的状态变化</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #faf7f2;
+    --ink: #1c1917;
+    --muted: #57534e;
+    --soft: #a8a29e;
+    --rule: rgba(28,25,23,0.10);
+    --accent: #b5523a;
+    --green: #2d6e3c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink);
+    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    padding: 3rem 1.5rem 2rem; line-height: 1.5; }
+  .container { max-width: 1140px; margin: 0 auto; }
+  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  h1 { font-family: 'Instrument Serif', 'Source Han Serif SC', serif; font-weight: 400;
+    font-size: 32px; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 2rem; max-width: 64ch; }
+  .frame { background: rgba(28,25,23,0.02); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--soft);
+    letter-spacing: 0.1em; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 10 章 · STATE EVOLUTION</p>
+  <h1>Session Tree：append-only 的状态变化</h1>
+  <p class="subtitle">会话存成一棵 append-only 的树（DAG）。leafId 是当前所在位置的指针。回退只是移动 leafId；追加新消息会创建新分支，旧分支被抛弃但仍在树里——永远不删，这是"不可变"的铁律。</p>
+
+  <div class="frame">
+  <svg viewBox="0 0 1080 640" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+      <marker id="arrow-green" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#2d6e3c"/>
+      </marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+    </defs>
+
+    <rect width="1080" height="640" fill="#faf7f2"/>
+
+    <!-- ===== Snapshot 1: Initial ===== -->
+    <g>
+      <rect x="20" y="40" width="340" height="440" rx="8" fill="#ffffff" stroke="rgba(28,25,23,0.20)" stroke-width="1"/>
+      <rect x="20" y="40" width="340" height="36" rx="8" fill="rgba(181,82,58,0.06)"/>
+      <text x="36" y="62" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif">① 当前状态</text>
+      <text x="344" y="62" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">leafId = A2</text>
+
+      <!-- tree edges -->
+      <line x1="180" y1="124" x2="180" y2="160" stroke="#57534e" stroke-width="1"/>
+      <line x1="180" y1="200" x2="120" y2="240" stroke="#57534e" stroke-width="1"/>
+      <line x1="180" y1="200" x2="240" y2="240" stroke="#57534e" stroke-width="1"/>
+
+      <!-- root -->
+      <rect x="156" y="92" width="48" height="32" rx="4" fill="rgba(28,25,23,0.05)" stroke="#1c1917" stroke-width="1"/>
+      <text x="180" y="112" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">root</text>
+
+      <!-- A1 -->
+      <rect x="156" y="168" width="48" height="32" rx="4" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <text x="180" y="188" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">A1</text>
+
+      <!-- A2 (focal - current leaf) -->
+      <rect x="96" y="240" width="48" height="32" rx="4" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1.4"/>
+      <text x="120" y="260" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">A2</text>
+
+      <!-- leafId pointer -->
+      <line x1="120" y1="280" x2="120" y2="304" stroke="#b5523a" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+      <text x="120" y="320" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">↑ leafId</text>
+
+      <!-- A3 (alternate branch - dimmed) -->
+      <rect x="216" y="240" width="48" height="32" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.20)" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="240" y="260" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">A3</text>
+
+      <!-- Description -->
+      <line x1="36" y1="368" x2="344" y2="368" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+      <text x="36" y="392" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">说明</text>
+      <text x="36" y="412" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">用户走到 A2，</text>
+      <text x="36" y="428" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">这是当前分支末端。</text>
+      <text x="36" y="450" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
+        路径：root → A1 → A2
+      </text>
+    </g>
+
+    <!-- arrow between snapshots -->
+    <text x="380" y="240" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.10em" text-anchor="middle">用户回退</text>
+    <line x1="370" y1="252" x2="370" y2="280" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- ===== Snapshot 2: Branch from A1 ===== -->
+    <g>
+      <rect x="390" y="40" width="340" height="440" rx="8" fill="#ffffff" stroke="rgba(28,25,23,0.20)" stroke-width="1"/>
+      <rect x="390" y="40" width="340" height="36" rx="8" fill="rgba(181,82,58,0.06)"/>
+      <text x="406" y="62" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif">② 用户回退到 A1</text>
+      <text x="714" y="62" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">leafId = A1</text>
+
+      <!-- tree edges -->
+      <line x1="550" y1="124" x2="550" y2="160" stroke="#57534e" stroke-width="1"/>
+      <line x1="550" y1="200" x2="490" y2="240" stroke="#57534e" stroke-width="1"/>
+      <line x1="550" y1="200" x2="610" y2="240" stroke="#57534e" stroke-width="1"/>
+
+      <!-- root -->
+      <rect x="526" y="92" width="48" height="32" rx="4" fill="rgba(28,25,23,0.05)" stroke="#1c1917" stroke-width="1"/>
+      <text x="550" y="112" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">root</text>
+
+      <!-- A1 (now focal) -->
+      <rect x="526" y="168" width="48" height="32" rx="4" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1.4"/>
+      <text x="550" y="188" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">A1</text>
+
+      <line x1="550" y1="208" x2="550" y2="280" stroke="#b5523a" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+      <text x="550" y="296" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">↑ leafId</text>
+
+      <!-- A2 (now dimmed - abandoned) -->
+      <rect x="466" y="240" width="48" height="32" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.20)" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="490" y="260" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">A2</text>
+
+      <!-- A3 (still dimmed) -->
+      <rect x="586" y="240" width="48" height="32" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.20)" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="610" y="260" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">A3</text>
+
+      <!-- Description -->
+      <line x1="406" y1="368" x2="714" y2="368" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+      <text x="406" y="392" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">说明</text>
+      <text x="406" y="412" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">回退 = 移动 leafId，</text>
+      <text x="406" y="428" fill="#b5523a" font-size="10" font-family="'Geist', sans-serif">不删任何节点（O(1)）</text>
+      <text x="406" y="450" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
+        A2 仍在树上，只是被抛弃
+      </text>
+    </g>
+
+    <!-- arrow between snapshots -->
+    <text x="750" y="240" fill="#2d6e3c" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.10em" text-anchor="middle">追加新消息</text>
+    <line x1="740" y1="252" x2="740" y2="280" stroke="#2d6e3c" stroke-width="1" marker-end="url(#arrow-green)"/>
+
+    <!-- ===== Snapshot 3: New branch ===== -->
+    <g>
+      <rect x="760" y="40" width="300" height="440" rx="8" fill="#ffffff" stroke="rgba(28,25,23,0.20)" stroke-width="1"/>
+      <rect x="760" y="40" width="300" height="36" rx="8" fill="rgba(181,82,58,0.06)"/>
+      <text x="776" y="62" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif">③ 从 A1 长出新分支</text>
+      <text x="1044" y="62" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">leafId = B2</text>
+
+      <!-- tree edges -->
+      <line x1="900" y1="124" x2="900" y2="160" stroke="#57534e" stroke-width="1"/>
+      <line x1="900" y1="200" x2="840" y2="240" stroke="rgba(28,25,23,0.30)" stroke-width="1" stroke-dasharray="3,2"/>
+      <line x1="900" y1="200" x2="960" y2="240" stroke="rgba(28,25,23,0.30)" stroke-width="1" stroke-dasharray="3,2"/>
+      <line x1="900" y1="200" x2="900" y2="240" stroke="#2d6e3c" stroke-width="1.4"/>
+      <line x1="900" y1="280" x2="900" y2="320" stroke="#2d6e3c" stroke-width="1.4"/>
+
+      <!-- root -->
+      <rect x="876" y="92" width="48" height="32" rx="4" fill="rgba(28,25,23,0.05)" stroke="#1c1917" stroke-width="1"/>
+      <text x="900" y="112" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">root</text>
+
+      <!-- A1 -->
+      <rect x="876" y="168" width="48" height="32" rx="4" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <text x="900" y="188" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">A1</text>
+
+      <!-- A2 (abandoned) -->
+      <rect x="816" y="240" width="48" height="32" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.20)" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="840" y="260" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">A2</text>
+
+      <!-- A3 (abandoned) -->
+      <rect x="936" y="240" width="48" height="32" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.20)" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="960" y="260" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">A3</text>
+
+      <!-- B1 (new branch) -->
+      <rect x="876" y="240" width="48" height="32" rx="4" fill="rgba(45,110,60,0.08)" stroke="#2d6e3c" stroke-width="1"/>
+      <text x="900" y="260" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">B1</text>
+
+      <!-- B2 (focal) -->
+      <rect x="876" y="320" width="48" height="32" rx="4" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1.4"/>
+      <text x="900" y="340" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">B2</text>
+
+      <line x1="900" y1="360" x2="900" y2="384" stroke="#b5523a" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+      <text x="900" y="400" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">↑ leafId</text>
+
+      <!-- Description -->
+      <line x1="776" y1="420" x2="1044" y2="420" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+      <text x="776" y="444" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">说明</text>
+      <text x="776" y="464" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">从 A1 长出新分支 B，</text>
+      <text x="776" y="476" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">B1 → B2 是新对话。</text>
+    </g>
+
+    <!-- ===== Bottom: design principles ===== -->
+    <line x1="20" y1="500" x2="1060" y2="500" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+
+    <text x="20" y="524" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">APPEND-ONLY 铁律</text>
+
+    <g transform="translate(20, 540)">
+      <rect x="0" y="0" width="14" height="14" rx="2" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1"/>
+      <text x="22" y="12" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">leafId 位置</text>
+      <text x="22" y="26" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">当前对话走到哪</text>
+    </g>
+
+    <g transform="translate(180, 540)">
+      <rect x="0" y="0" width="14" height="14" rx="2" fill="rgba(45,110,60,0.08)" stroke="#2d6e3c" stroke-width="1"/>
+      <text x="22" y="12" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">新分支</text>
+      <text x="22" y="26" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">从分叉点长出的新路径</text>
+    </g>
+
+    <g transform="translate(340, 540)">
+      <rect x="0" y="0" width="14" height="14" rx="2" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.20)" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="22" y="12" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">被抛弃分支</text>
+      <text x="22" y="26" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">仍在树上，永不删除</text>
+    </g>
+
+    <g transform="translate(540, 540)">
+      <rect x="0" y="0" width="14" height="14" rx="2" fill="rgba(28,25,23,0.05)" stroke="#1c1917" stroke-width="1"/>
+      <text x="22" y="12" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">普通节点</text>
+      <text x="22" y="26" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">在当前路径上的中间节点</text>
+    </g>
+
+    <text x="20" y="600" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" font-style="italic">
+      三种操作都是 O(1)：追加（写新节点 + 移 leafId）、回退（只移 leafId）、重试（回退 + 追加）
+    </text>
+    <text x="20" y="618" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" font-style="italic">
+      → 走错路了就分叉，不用开十个终端窗口。所有分支活在同一个文件里。
+    </text>
+  </svg>
+  </div>
+
+  <div class="footer">
+    <span>PI-AGENT · 项目原理二次整理版</span>
+    <span>260702 · CH10 · STATE EVOLUTION</span>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,149 @@
+---
+// src/components/home/Hero.astro
+// Hero 区：左侧标题+persona+CTA / 右侧项目介绍卡片
+import BookIntro from './BookIntro.astro';
+import { getPublishedModules, getVariantUrl } from '../../utils/collection';
+
+const published = await getPublishedModules();
+const first = published[0];
+const ctaUrl = first ? getVariantUrl(first) : '/modules/ch01-overview';
+
+const piAgentDesc = 'Pi Agent（pi.dev）是一个开源的、可扩展的 Agent SDK，也是 OpenClaw 等应用的运行时底座。';
+const piAgentGithub = 'https://github.com/earendil-works/pi';
+---
+
+<section class="hero">
+  <div class="hero-grid">
+    <div class="hero-left">
+      <p class="hero-eyebrow">源码精读笔记</p>
+      <h1 class="hero-title">Pi Agent</h1>
+      <div class="hero-rule"></div>
+
+      <div class="hero-persona">
+        <p>如果你正在开发 AI Agent</p>
+        <p>想学习 Harness 的设计</p>
+        <p>想搞懂一个生产级 Agent SDK 是怎么造出来的</p>
+        <p class="hero-persona-tail">—— 这本笔记是给你的</p>
+      </div>
+
+      <a class="hero-cta" href={ctaUrl}>开始阅读 →</a>
+    </div>
+
+    <aside class="hero-right">
+      <BookIntro
+        name="Pi Agent"
+        description={piAgentDesc}
+        githubUrl={piAgentGithub}
+      />
+    </aside>
+  </div>
+</section>
+
+<style>
+.hero {
+  padding: var(--space-24) var(--space-6) var(--space-16);
+}
+.hero-grid {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: var(--space-16);
+  align-items: center;
+}
+.hero-left {
+  text-align: left;
+}
+.hero-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  color: var(--accent);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin: 0 0 var(--space-3);
+}
+.hero-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-h1);
+  line-height: var(--lh-tight);
+  margin: 0;
+  color: var(--ink-strong);
+  letter-spacing: -0.03em;
+}
+.hero-rule {
+  width: 72px;
+  height: 3px;
+  background: var(--accent);
+  margin: var(--space-5) 0 var(--space-6);
+}
+.hero-persona {
+  font-size: 20px;
+  line-height: var(--lh-prose);
+  color: var(--ink-strong);
+  margin: var(--space-8) 0;
+  max-width: 540px;
+}
+.hero-persona p {
+  margin: 0 0 var(--space-2);
+}
+.hero-persona-tail {
+  color: var(--muted);
+  margin-top: var(--space-4) !important;
+  font-style: italic;
+  font-family: var(--font-display);
+  font-size: 22px;
+}
+.hero-cta {
+  display: inline-block;
+  margin-top: var(--space-8);
+  padding: var(--space-4) var(--space-8);
+  background: var(--accent);
+  color: var(--paper);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  box-shadow:
+    0 10px 24px -8px rgba(235, 108, 54, 0.55),
+    0 2px 0 rgba(0, 0, 0, 0.06);
+  transition: background var(--dur-base) var(--ease),
+              transform var(--dur-base) var(--ease),
+              box-shadow var(--dur-base) var(--ease);
+}
+.hero-cta:hover {
+  background: #d85a28;
+  transform: translateY(-3px) scale(1.03);
+  box-shadow:
+    0 16px 32px -10px rgba(235, 108, 54, 0.65),
+    0 4px 0 rgba(0, 0, 0, 0.08);
+}
+.hero-cta:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+@media (max-width: 900px) {
+  .hero {
+    padding: var(--space-16) var(--space-6) var(--space-12);
+  }
+  .hero-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-12);
+  }
+  .hero-title {
+    font-size: 48px;
+  }
+  .hero-persona {
+    font-size: var(--fs-body);
+  }
+  .hero-persona-tail {
+    font-size: var(--fs-h3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-cta { transition: none; }
+  .hero-cta:hover { transform: none; }
+}
+</style>

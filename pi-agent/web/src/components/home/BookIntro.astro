@@ -1,0 +1,72 @@
+---
+// src/components/home/BookIntro.astro
+// 可复用的项目介绍块。丛书化后，每本书的 Hero 都可以用它。
+interface Props {
+  name: string;
+  description: string;
+  githubUrl: string;
+}
+const { name, description, githubUrl } = Astro.props;
+
+const displayUrl = githubUrl.replace(/^https?:\/\//, '');
+---
+
+<aside class="book-intro">
+  <div class="book-intro-heading">◆ 关于 {name}</div>
+  <p class="book-intro-desc">{description}</p>
+  <a class="book-intro-link" href={githubUrl} target="_blank" rel="noopener noreferrer">
+    → {displayUrl}
+  </a>
+</aside>
+
+<style>
+.book-intro {
+  padding: var(--space-8) var(--space-8);
+  border-left: 4px solid var(--accent);
+  background: var(--paper-raised);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  box-shadow: 0 1px 0 var(--rule);
+  text-align: left;
+}
+.book-intro-heading {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-4);
+  text-transform: uppercase;
+}
+.book-intro-desc {
+  font-size: 20px;
+  line-height: var(--lh-prose);
+  color: var(--ink-strong);
+  margin: 0 0 var(--space-5);
+  font-family: var(--font-display);
+}
+.book-intro-link {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--dur-base) var(--ease);
+  word-break: break-all;
+}
+.book-intro-link:hover {
+  border-bottom-color: var(--accent);
+}
+
+@media (max-width: 900px) {
+  .book-intro {
+    padding: var(--space-6) var(--space-6);
+  }
+  .book-intro-desc {
+    font-size: var(--fs-h3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book-intro-link { transition: none; }
+}
+</style>

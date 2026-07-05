@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>压缩前后 Token 对比</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --paper: #faf7f2; --ink: #1c1917; --muted: #57534e; --soft: #a8a29e;
+    --rule: rgba(28,25,23,0.10); --accent: #b5523a; --green: #2d6e3c; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink);
+    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    padding: 3rem 1.5rem 2rem; line-height: 1.5; }
+  .container { max-width: 1080px; margin: 0 auto; }
+  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  h1 { font-family: 'Instrument Serif', 'Source Han Serif SC', serif; font-weight: 400;
+    font-size: 32px; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 2rem; max-width: 64ch; }
+  .frame { background: rgba(28,25,23,0.02); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--soft);
+    letter-spacing: 0.1em; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 9 章 · BEFORE / AFTER</p>
+  <h1>压缩前后：Token 占用对比</h1>
+  <p class="subtitle">200K 上下文窗口已经塞了 185K——再聊几句就要溢出。压缩后腾出 130K 空间，保留关键信息（结构化摘要 + 近期消息）。</p>
+
+  <div class="frame">
+  <svg viewBox="0 0 960 500" xmlns="http://www.w3.org/2000/svg">
+    <rect width="960" height="500" fill="#faf7f2"/>
+
+    <!-- Window limit line -->
+    <line x1="40" y1="80" x2="920" y2="80" stroke="#b5523a" stroke-width="1.2" stroke-dasharray="6,4"/>
+    <text x="60" y="72" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" letter-spacing="0.10em">CONTEXT WINDOW · 200K</text>
+    <text x="900" y="72" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" text-anchor="end">Claude 200K · GPT 128K</text>
+
+    <!-- ===== BEFORE (left) ===== -->
+    <text x="180" y="120" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">BEFORE · 压缩前</text>
+
+    <!-- stacked messages -->
+    <rect x="80" y="140" width="280" height="240" rx="4" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+    <rect x="80" y="140" width="280" height="32" rx="4" fill="rgba(181,82,58,0.10)"/>
+    <text x="220" y="160" fill="#b5523a" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">原始对话历史</text>
+
+    <rect x="100" y="184" width="240" height="40" rx="2" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+    <text x="220" y="200" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">旧消息 1-30</text>
+    <text x="220" y="214" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">user/assistant/toolResult × 30</text>
+
+    <rect x="100" y="232" width="240" height="40" rx="2" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+    <text x="220" y="248" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">中间消息 31-60</text>
+    <text x="220" y="262" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">含多次工具调用细节</text>
+
+    <rect x="100" y="280" width="240" height="40" rx="2" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+    <text x="220" y="296" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">近期消息 61-72</text>
+    <text x="220" y="310" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">最近 12 条</text>
+
+    <text x="220" y="346" fill="#b5523a" font-size="14" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">185,000 tokens</text>
+    <text x="220" y="366" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle" font-style="italic">只剩 15K 可用，危险</text>
+
+    <!-- ===== ARROW ===== -->
+    <text x="450" y="200" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">压缩</text>
+    <line x1="380" y1="240" x2="540" y2="240" stroke="#b5523a" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+    <text x="450" y="262" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">触发</text>
+    <text x="450" y="278" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">找切割点</text>
+    <text x="450" y="294" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">生成摘要</text>
+
+    <defs>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+    </defs>
+
+    <!-- ===== AFTER (right) ===== -->
+    <text x="740" y="120" fill="#2d6e3c" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">AFTER · 压缩后</text>
+
+    <rect x="560" y="140" width="280" height="240" rx="4" fill="rgba(45,110,60,0.06)" stroke="#2d6e3c" stroke-width="1"/>
+    <rect x="560" y="140" width="280" height="32" rx="4" fill="rgba(45,110,60,0.10)"/>
+    <text x="700" y="160" fill="#2d6e3c" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">压缩后的上下文</text>
+
+    <!-- CompactionSummaryMessage -->
+    <rect x="580" y="184" width="240" height="76" rx="2" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+    <text x="700" y="200" fill="#b5523a" font-size="9" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">CompactionSummaryMessage</text>
+    <text x="700" y="216" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">结构化摘要 6 个 section</text>
+    <text x="700" y="230" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">Goal/Progress/Decisions/...</text>
+    <text x="700" y="246" fill="#a8a29e" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">~10,000 tokens</text>
+
+    <!-- Kept messages -->
+    <rect x="580" y="268" width="240" height="56" rx="2" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+    <text x="700" y="284" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">保留近期消息（11 条）</text>
+    <text x="700" y="300" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">仍在 keepRecentTokens 阈值内</text>
+    <text x="700" y="316" fill="#a8a29e" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">~50,000 tokens</text>
+
+    <text x="700" y="346" fill="#2d6e3c" font-size="14" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">60,000 tokens</text>
+    <text x="700" y="366" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle" font-style="italic">腾出 140K，可继续聊很久</text>
+
+    <!-- Bottom: impact -->
+    <line x1="40" y1="408" x2="920" y2="408" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+    <text x="40" y="432" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">IMPACT</text>
+
+    <text x="40" y="456" fill="#1c1917" font-size="11" font-family="'Geist', sans-serif">
+      Token 占用从 <tspan fill="#b5523a" font-weight="600">92.5%</tspan> 降到 <tspan fill="#2d6e3c" font-weight="600">30%</tspan>。压缩是有损的（细节丢了），但保留了对话目标、约束、关键决策、进度等结构化信息。
+    </text>
+    <text x="40" y="480" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" font-style="italic">
+      模型仍然知道"我们在做什么、做到哪了、决定了什么"——它不知道的是早期对话的具体措辞。
+    </text>
+  </svg>
+  </div>
+
+  <div class="footer">
+    <span>PI-AGENT · 项目原理二次整理版</span>
+    <span>260702 · CH08 · BEFORE / AFTER</span>
+  </div>
+</div>
+</body>
+</html>

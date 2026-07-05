@@ -1,0 +1,159 @@
+  <svg viewBox="0 0 960 660" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+    </defs>
+
+    <rect width="960" height="660" fill="#faf7f2"/>
+
+    <!-- Top: AgentMessage root -->
+    <rect x="360" y="30" width="240" height="76" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.4"/>
+    <rect x="376" y="42" width="120" height="14" rx="2" fill="rgba(181,82,58,0.10)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
+    <text x="436" y="53" fill="#b5523a" font-size="7" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">UNION TYPE</text>
+    <text x="480" y="78" fill="#1c1917" font-size="14" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">AgentMessage</text>
+    <text x="480" y="96" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace"
+          text-anchor="middle">context.messages 数组</text>
+
+    <!-- Two branches down -->
+    <line x1="480" y1="106" x2="480" y2="140" stroke="#57534e" stroke-width="1"/>
+    <line x1="220" y1="140" x2="740" y2="140" stroke="#57534e" stroke-width="1"/>
+    <line x1="220" y1="140" x2="220" y2="174" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+    <line x1="740" y1="140" x2="740" y2="174" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- Left branch header -->
+    <rect x="60" y="180" width="320" height="44" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+    <text x="220" y="200" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">Message（标准消息）</text>
+    <text x="220" y="216" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          text-anchor="middle">LLM 直接认识</text>
+
+    <!-- 3 standard message types -->
+    <g>
+      <rect x="60" y="240" width="100" height="100" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+      <rect x="60" y="240" width="100" height="24" rx="4" fill="rgba(28,25,23,0.05)"/>
+      <text x="110" y="256" fill="#1c1917" font-size="9" font-weight="600" font-family="'Geist Mono', monospace"
+            text-anchor="middle">UserMessage</text>
+      <text x="110" y="282" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">role: "user"</text>
+      <text x="110" y="300" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">用户输入</text>
+      <text x="110" y="316" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">截图等</text>
+    </g>
+
+    <g>
+      <rect x="170" y="240" width="100" height="100" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+      <rect x="170" y="240" width="100" height="24" rx="4" fill="rgba(28,25,23,0.05)"/>
+      <text x="220" y="256" fill="#1c1917" font-size="9" font-weight="600" font-family="'Geist Mono', monospace"
+            text-anchor="middle">AssistantMsg</text>
+      <text x="220" y="282" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">role: "assistant"</text>
+      <text x="220" y="300" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">模型回复</text>
+      <text x="220" y="316" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">+ ToolCall</text>
+    </g>
+
+    <g>
+      <rect x="280" y="240" width="100" height="100" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+      <rect x="280" y="240" width="100" height="24" rx="4" fill="rgba(28,25,23,0.05)"/>
+      <text x="330" y="256" fill="#1c1917" font-size="9" font-weight="600" font-family="'Geist Mono', monospace"
+            text-anchor="middle">ToolResultMsg</text>
+      <text x="330" y="282" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">role: "toolResult"</text>
+      <text x="330" y="300" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">工具结果</text>
+      <text x="330" y="316" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">isError 标记</text>
+    </g>
+
+    <!-- Right branch header -->
+    <rect x="580" y="180" width="320" height="44" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+    <text x="740" y="200" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">CustomAgentMessages</text>
+    <text x="740" y="216" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          text-anchor="middle">LLM 不认识 · 内部状态</text>
+
+    <!-- 4 custom message types (grid) -->
+    <g>
+      <rect x="580" y="240" width="156" height="68" rx="4" fill="rgba(181,82,58,0.06)" stroke="rgba(181,82,58,0.50)" stroke-width="1"/>
+      <rect x="580" y="240" width="156" height="20" rx="4" fill="rgba(181,82,58,0.10)"/>
+      <text x="658" y="254" fill="#b5523a" font-size="9" font-weight="600" font-family="'Geist Mono', monospace"
+            text-anchor="middle">BashExecutionMsg</text>
+      <text x="658" y="276" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">command + output</text>
+      <text x="658" y="290" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">+ exitCode + cancelled</text>
+      <text x="658" y="304" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">+ truncated</text>
+    </g>
+
+    <g>
+      <rect x="744" y="240" width="156" height="68" rx="4" fill="rgba(181,82,58,0.06)" stroke="rgba(181,82,58,0.50)" stroke-width="1"/>
+      <rect x="744" y="240" width="156" height="20" rx="4" fill="rgba(181,82,58,0.10)"/>
+      <text x="822" y="254" fill="#b5523a" font-size="9" font-weight="600" font-family="'Geist Mono', monospace"
+            text-anchor="middle">CompactionSummary</text>
+      <text x="822" y="276" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">summary 文本</text>
+      <text x="822" y="290" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">压缩后的旧对话</text>
+      <text x="822" y="304" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">第9章详讲</text>
+    </g>
+
+    <g>
+      <rect x="580" y="316" width="156" height="68" rx="4" fill="rgba(181,82,58,0.06)" stroke="rgba(181,82,58,0.50)" stroke-width="1"/>
+      <rect x="580" y="316" width="156" height="20" rx="4" fill="rgba(181,82,58,0.10)"/>
+      <text x="658" y="330" fill="#b5523a" font-size="9" font-weight="600" font-family="'Geist Mono', monospace"
+            text-anchor="middle">BranchSummary</text>
+      <text x="658" y="352" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">被放弃分支的</text>
+      <text x="658" y="366" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">"遗言"摘要</text>
+      <text x="658" y="380" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">第10章详讲</text>
+    </g>
+
+    <g>
+      <rect x="744" y="316" width="156" height="68" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
+      <rect x="744" y="316" width="156" height="20" rx="4" fill="rgba(28,25,23,0.05)"/>
+      <text x="822" y="330" fill="#57534e" font-size="9" font-weight="600" font-family="'Geist Mono', monospace"
+            text-anchor="middle">CustomMessage</text>
+      <text x="822" y="352" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">扩展自定义</text>
+      <text x="822" y="366" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">通过声明合并</text>
+      <text x="822" y="380" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">注入类型</text>
+    </g>
+
+    <!-- Annotation: 内部 7 种 -->
+    <rect x="60" y="380" width="840" height="2" fill="rgba(28,25,23,0.15)"/>
+
+    <!-- convertToLlm boundary line -->
+    <line x1="60" y1="420" x2="900" y2="420" stroke="#b5523a" stroke-width="1.2" stroke-dasharray="6,4"/>
+    <rect x="380" y="412" width="200" height="16" rx="2" fill="#faf7f2"/>
+    <text x="480" y="424" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">convertToLlm() 翻译边界</text>
+
+    <text x="60" y="408" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">↑ Agent 内部（7 种）</text>
+    <text x="900" y="408" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">↓ LLM 看到的（3 种）</text>
+
+    <!-- Bottom: LLM sees only 3 -->
+    <rect x="280" y="450" width="400" height="80" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+    <rect x="296" y="462" width="120" height="14" rx="2" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+    <text x="356" y="473" fill="#57534e" font-size="7" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">LLM CONTEXT</text>
+    <text x="480" y="496" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">Message[]（3 种）</text>
+    <text x="480" y="516" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace"
+          text-anchor="middle">UserMessage · AssistantMessage · ToolResultMessage</text>
+
+    <!-- Arrows down (only standard pass) -->
+    <line x1="110" y1="340" x2="110" y2="450" stroke="#57534e" stroke-width="1"/>
+    <line x1="220" y1="340" x2="220" y2="450" stroke="#57534e" stroke-width="1"/>
+    <line x1="330" y1="340" x2="330" y2="450" stroke="#57534e" stroke-width="1"/>
+
+    <!-- Blocked custom messages -->
+    <line x1="658" y1="384" x2="658" y2="412" stroke="#b5523a" stroke-width="1" stroke-dasharray="3,3"/>
+    <text x="500" y="402" fill="#b5523a" font-size="8" font-family="'Geist', sans-serif" font-style="italic">✗ 仅 excludeFromContext=true 时过滤</text>
+    <line x1="822" y1="384" x2="822" y2="412" stroke="#b5523a" stroke-width="1" stroke-dasharray="3,3"/>
+    <text x="780" y="402" fill="#b5523a" font-size="8" font-family="'Geist', sans-serif" font-style="italic">✗ 翻译成 User</text>
+
+    <!-- Principle box -->
+    <rect x="60" y="556" width="840" height="76" rx="6" fill="rgba(181,82,58,0.05)" stroke="rgba(181,82,58,0.30)" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="80" y="582" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">PRINCIPLE · 内富外严</text>
+
+    <text x="80" y="606" fill="#1c1917" font-size="11" font-family="'Instrument Serif', 'Source Han Serif SC', serif" font-style="italic">
+      内部用 7 种消息类型自由表达 → LLM 边界翻译成 3 种标准格式
+    </text>
+    <text x="80" y="624" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">
+      Agent 能记录自己的内部状态（压缩、执行详情、分支），LLM 不需要认识这些——它只懂标准协议。
+    </text>
+  </svg>

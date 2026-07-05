@@ -1,0 +1,64 @@
+---
+// src/components/ModuleLink.astro
+// Inline module reference component for use in MDX body.
+// Renders a link to another module; follows reader's language preference.
+//
+// Server-side: renders the default TS link (/modules/<slug>).
+// Client-side: if the reader's preference is Python, rewrites href to the
+// Python variant ONLY when one exists (checked via silent HEAD probe).
+//
+// Note: unlike PrevNextNav (where the prev/next entries are known server-side
+// and their counterpart info is passed as a data attribute), ModuleLink targets
+// arbitrary slugs that the current page cannot resolve — hence the HEAD probe.
+interface Props {
+  slug: string;        // TS variant slug, without .python suffix
+  label?: string;
+}
+const { slug, label } = Astro.props;
+---
+
+<a href={`/modules/${slug}`} class="module-link" data-target-slug={slug}>
+  <slot>{label || slug}</slot>
+</a>
+
+<script>
+  // Rewrite href to Python variant if reader prefers Python AND variant exists.
+  const STORAGE_KEY = 'pi-agent-book:lang';
+  let pref: string | null = null;
+  try { pref = localStorage.getItem(STORAGE_KEY); } catch { /* noop */ }
+
+  if (pref === 'python') {
+    document.querySelectorAll<HTMLAnchorElement>('a.module-link[data-target-slug]').forEach(async (a) => {
+      const slug = a.dataset.targetSlug;
+      if (!slug) return;
+      try {
+        // HEAD probe — silent. 404s are expected for TS-only modules and
+        // do not indicate an error; we simply leave the TS href in place.
+        const res = await fetch(`/modules/${slug}/python/`, { method: 'HEAD' })
+          .catch(() => null);
+        if (res && res.ok) {
+          a.setAttribute('href', `/modules/${slug}/python`);
+        }
+      } catch { /* noop */ }
+    });
+  }
+</script>
+
+<style>
+  .module-link {
+    color: var(--accent);
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-color: var(--accent-soft);
+    text-underline-offset: var(--underline-offset);
+    transition: text-decoration-color var(--dur-fast) var(--ease);
+  }
+  .module-link:hover {
+    text-decoration-color: var(--accent);
+  }
+  .module-link:focus-visible {
+    outline: var(--outline-w) solid var(--accent);
+    outline-offset: var(--outline-offset);
+    border-radius: var(--radius-sm);
+  }
+</style>

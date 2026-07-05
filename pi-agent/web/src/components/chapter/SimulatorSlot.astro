@@ -1,0 +1,236 @@
+---
+// src/components/chapter/SimulatorSlot.astro
+// Mount point for interactive React Islands.
+// Wired to dynamically render the correct island based on the module's
+// frontmatter `simulator.preset` field.
+import PartialMessageTimeline from '../islands/PartialMessageTimeline.tsx';
+import ErrorDefenseDemo from '../islands/ErrorDefenseDemo.tsx';
+
+interface Props {
+  preset?: 'partial-message' | 'error-defense';
+}
+const { preset } = Astro.props;
+---
+
+{preset === 'partial-message' && <PartialMessageTimeline client:visible />}
+{preset === 'error-defense' && <ErrorDefenseDemo client:visible />}
+
+<style is:global>
+  /* ===== shared primitives ===== */
+  .event-timeline {
+    display: flex;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    overflow-x: auto;
+  }
+  .event-tick {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    background: var(--paper-sunken);
+    border: var(--border-w) solid var(--rule);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all var(--dur-fast) var(--ease);
+    min-width: 120px;
+  }
+  .event-tick:hover {
+    border-color: var(--accent);
+  }
+  .event-tick:focus-visible {
+    outline: var(--hl-outline-w) solid var(--accent);
+    outline-offset: var(--hl-outline-offset);
+  }
+  .event-tick.is-current {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .event-tick.type-milestone {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .event-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .message-card {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    overflow-x: auto;
+  }
+  .message-card-title {
+    color: var(--accent);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: var(--space-2);
+  }
+  .message-card pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .message-card code {
+    font-family: inherit;
+  }
+
+  .play-controls {
+    display: flex;
+    gap: var(--space-2);
+  }
+  .play-controls .pc-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    background: var(--paper-raised);
+    border: var(--border-w) solid var(--rule);
+    cursor: pointer;
+    font-size: var(--fs-h3);
+    color: var(--ink);
+    transition: all var(--dur-fast) var(--ease);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .play-controls .pc-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .play-controls .pc-btn:focus-visible {
+    outline: var(--hl-outline-w) solid var(--accent);
+    outline-offset: var(--hl-outline-offset);
+  }
+
+  /* ===== simulator shell (shared by all 3 islands) ===== */
+  .loop-simulator {
+    background: var(--paper-raised);
+    border: var(--border-w) solid var(--rule);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    margin: var(--space-8) 0;
+  }
+  .sim-title {
+    font-family: var(--font-display);
+    font-size: var(--fs-h3);
+    margin: 0 0 var(--space-4);
+    color: var(--ink-strong);
+  }
+  .sim-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: var(--space-4) 0;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .turn-badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-sm);
+    letter-spacing: 0.08em;
+    display: inline-block;
+  }
+  .turn-badge.is-outer {
+    background: var(--accent);
+    color: white;
+  }
+  .turn-badge.is-inner {
+    background: var(--paper-sunken);
+    color: var(--muted);
+  }
+  .sim-description {
+    color: var(--muted);
+    font-size: var(--fs-small);
+    line-height: 1.6;
+    margin: var(--space-3) 0;
+  }
+  .sim-description code {
+    font-family: var(--font-mono);
+    background: var(--paper-sunken);
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-sm);
+  }
+  .sim-messages {
+    margin-top: var(--space-4);
+  }
+
+  /* ===== S4 error defense ===== */
+  .error-buttons {
+    display: flex;
+    gap: var(--space-3);
+    margin: var(--space-4) 0;
+    flex-wrap: wrap;
+  }
+  .err-btn {
+    padding: var(--space-3) var(--space-6);
+    background: var(--paper-sunken);
+    border: var(--border-w) solid var(--rule);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all var(--dur-fast) var(--ease);
+  }
+  .err-btn:hover {
+    border-color: var(--accent);
+  }
+  .err-btn:focus-visible {
+    outline: var(--hl-outline-w) solid var(--accent);
+    outline-offset: var(--hl-outline-offset);
+  }
+  .err-btn.is-active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .defense-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: var(--space-4);
+    font-size: 13px;
+  }
+  .defense-table th {
+    text-align: right;
+    padding: var(--space-2) var(--space-4);
+    background: var(--paper-sunken);
+    width: 120px;
+    vertical-align: top;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .defense-table td {
+    padding: var(--space-2) var(--space-4);
+    border-bottom: var(--border-w) solid var(--rule);
+    color: var(--ink);
+  }
+  .defense-table code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    word-break: break-word;
+  }
+
+  /* ===== reduced motion ===== */
+  @media (prefers-reduced-motion: reduce) {
+    .event-tick,
+    .play-controls .pc-btn,
+    .err-btn {
+      transition: none;
+    }
+  }
+</style>

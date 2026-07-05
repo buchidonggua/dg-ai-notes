@@ -1,0 +1,115 @@
+---
+// src/components/ModuleCard.astro
+// 合并卡：每章一张卡，TS/Python 双版本作为卡内切换按钮
+import { getVariantUrl, getModuleStats } from '../utils/collection';
+import type { GroupedChapter } from '../utils/collection';
+
+interface Props { chapter: GroupedChapter; }
+const { chapter } = Astro.props;
+
+// 主 entry 用于展示标题、summary、统计：优先 TS 版，TS 不存在时用 Python 版
+const primary = chapter.tsEntry ?? chapter.pythonEntry;
+if (!primary) {
+  // 不应发生（groupByChapter 至少塞一个 variant），防御性兜底
+  return Astro.redirect('/404');
+}
+const { data } = primary;
+const stats = getModuleStats(primary);
+
+const tsUrl = chapter.tsEntry ? getVariantUrl(chapter.tsEntry) : null;
+const pyUrl = chapter.pythonEntry ? getVariantUrl(chapter.pythonEntry) : null;
+---
+
+<article class="module-card">
+  <div class="card-eyebrow">{data.module}</div>
+  <h3 class="card-title">{data.title}</h3>
+  <p class="card-summary">{data.summary}</p>
+
+  {stats.wordCount > 0 && (
+    <div class="card-meta">
+      <span>{stats.wordCount}字</span>
+      {stats.codeLines > 0 && <span>· 含{stats.codeLines}行代码</span>}
+      <span>· 约{stats.readMinutes}分钟</span>
+    </div>
+  )}
+
+  <div class="card-actions">
+    {tsUrl && <a class="variant-btn" href={tsUrl}>TS</a>}
+    {pyUrl && <a class="variant-btn" href={pyUrl}>Py</a>}
+  </div>
+</article>
+
+<style>
+.module-card {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-5);
+  background: var(--paper-raised);
+  border: var(--border-w) solid var(--rule);
+  border-radius: var(--radius-md);
+  /* 注意：卡片整体不带 hover / transition，因为不可点；
+     只有按钮带交互 */
+}
+.card-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: var(--space-2);
+}
+.card-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+  line-height: var(--lh-tight);
+  margin: 0 0 var(--space-3);
+  color: var(--ink-strong);
+}
+.card-summary {
+  flex: 1;
+  font-size: var(--fs-small);
+  color: var(--muted);
+  line-height: var(--lh-prose);
+  margin: 0 0 var(--space-4);
+}
+.card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--soft);
+  padding-top: var(--space-3);
+  border-top: var(--border-w) solid var(--rule);
+  margin-bottom: var(--space-4);
+}
+.card-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+.variant-btn {
+  flex: 1;
+  display: inline-block;
+  text-align: center;
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-w) solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition: background var(--dur-base) var(--ease),
+              color var(--dur-base) var(--ease);
+}
+.variant-btn:hover {
+  background: var(--accent);
+  color: var(--paper-raised);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .variant-btn { transition: none; }
+}
+</style>

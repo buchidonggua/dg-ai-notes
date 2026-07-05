@@ -1,0 +1,138 @@
+  <svg viewBox="0 0 960 660" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+    </defs>
+
+    <rect width="960" height="660" fill="#faf7f2"/>
+
+    <!-- ===== Layer 1: agent ===== -->
+    <rect x="40" y="80" width="880" height="440" rx="8"
+          fill="rgba(28,25,23,0.02)" stroke="#1c1917" stroke-width="1.2"/>
+    <rect x="40" y="80" width="880" height="32" rx="8" fill="rgba(181,82,58,0.08)"/>
+    <text x="56" y="100" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif">Layer 1 · Agent（整个运行）</text>
+    <text x="880" y="100" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" text-anchor="end">agent_start → agent_end</text>
+
+    <!-- event markers top -->
+    <circle cx="100" cy="64" r="6" fill="#b5523a"/>
+    <text x="100" y="50" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle">agent_start</text>
+
+    <!-- ===== Layer 2: Turn 1 ===== -->
+    <rect x="64" y="128" width="832" height="180" rx="6"
+          fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+    <rect x="64" y="128" width="832" height="24" rx="6" fill="rgba(28,25,23,0.05)"/>
+    <text x="80" y="144" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">Layer 2 · Turn 1</text>
+    <text x="880" y="144" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">turn_start → turn_end</text>
+
+    <!-- event markers -->
+    <circle cx="80" cy="120" r="4" fill="#57534e"/>
+    <text x="92" y="124" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace">turn_start</text>
+
+    <!-- ===== Layer 3: messages inside Turn 1 ===== -->
+    <!-- user message -->
+    <rect x="88" y="168" width="380" height="56" rx="4"
+          fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+    <rect x="88" y="168" width="380" height="20" rx="4" fill="rgba(28,25,23,0.05)"/>
+    <text x="100" y="182" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace"
+          letter-spacing="0.10em">LAYER 3 · Message (User)</text>
+    <text x="278" y="206" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">
+      message_start → message_end
+    </text>
+    <text x="278" y="220" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">
+      （用户消息无 update）
+    </text>
+
+    <!-- assistant message -->
+    <rect x="484" y="168" width="396" height="124" rx="4"
+          fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+    <rect x="484" y="168" width="396" height="20" rx="4" fill="rgba(181,82,58,0.08)"/>
+    <text x="496" y="182" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
+          letter-spacing="0.10em">LAYER 3 · Message (Assistant)</text>
+
+    <text x="682" y="208" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">
+      message_start → message_update ×N → message_end
+    </text>
+
+    <!-- Layer 4 nested: tool execution inside assistant message -->
+    <rect x="500" y="220" width="364" height="60" rx="4"
+          fill="rgba(181,82,58,0.04)" stroke="rgba(181,82,58,0.50)" stroke-width="1" stroke-dasharray="3,2"/>
+    <rect x="500" y="220" width="364" height="16" rx="4" fill="rgba(181,82,58,0.08)"/>
+    <text x="512" y="232" fill="#b5523a" font-size="7" font-family="'Geist Mono', monospace"
+          letter-spacing="0.10em">LAYER 4 · TOOL EXECUTION</text>
+    <text x="682" y="256" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">
+      tool_execution_start
+    </text>
+    <text x="682" y="270" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">
+      → tool_execution_update ×N
+    </text>
+
+    <text x="682" y="304" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">
+      → tool_execution_end
+    </text>
+
+    <!-- turn_end marker -->
+    <circle cx="880" cy="320" r="4" fill="#57534e"/>
+    <text x="868" y="324" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace" text-anchor="end">turn_end</text>
+
+    <!-- ===== Layer 2: Turn 2 (simpler) ===== -->
+    <rect x="64" y="344" width="832" height="140" rx="6"
+          fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+    <rect x="64" y="344" width="832" height="24" rx="6" fill="rgba(28,25,23,0.05)"/>
+    <text x="80" y="360" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">Layer 2 · Turn 2</text>
+    <text x="880" y="360" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">turn_start → turn_end</text>
+
+    <circle cx="80" cy="336" r="4" fill="#57534e"/>
+
+    <!-- Message in Turn 2 (just text reply, no tool) -->
+    <rect x="88" y="384" width="800" height="80" rx="4"
+          fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+    <rect x="88" y="384" width="800" height="20" rx="4" fill="rgba(181,82,58,0.08)"/>
+    <text x="100" y="398" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
+          letter-spacing="0.10em">LAYER 3 · Message (Assistant · stopReason = stop)</text>
+
+    <text x="488" y="424" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">
+      message_start → message_update ×N → message_end
+    </text>
+    <text x="488" y="442" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle" font-style="italic">
+      （没有 ToolCall，所以没有 Layer 4 嵌套）
+    </text>
+
+    <circle cx="880" cy="492" r="4" fill="#57534e"/>
+    <text x="868" y="496" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace" text-anchor="end">turn_end</text>
+
+    <!-- agent_end -->
+    <circle cx="100" cy="540" r="6" fill="#b5523a"/>
+    <text x="100" y="556" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle">agent_end</text>
+
+    <!-- Right side: legend / pattern -->
+    <line x1="40" y1="568" x2="920" y2="568" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+
+    <text x="40" y="588" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">PATTERN</text>
+    <text x="100" y="588" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">
+      每层都是 "开始 → 更新（×N）→ 结束" 配对
+    </text>
+
+    <g transform="translate(40, 604)">
+      <circle cx="6" cy="6" r="4" fill="#b5523a"/>
+      <text x="18" y="10" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif">Trace 边界事件（2 种：start/end）</text>
+
+      <circle cx="246" cy="6" r="4" fill="#57534e"/>
+      <text x="258" y="10" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif">Turn 边界（2 种）</text>
+
+      <circle cx="426" cy="6" r="4" fill="#57534e"/>
+      <text x="438" y="10" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif">Message 三连（3 种）</text>
+
+      <circle cx="606" cy="6" r="4" fill="#b5523a"/>
+      <text x="618" y="10" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif">Tool Exec 三连（3 种）</text>
+
+      <text x="780" y="10" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">= 共 10 种</text>
+    </g>
+
+    <text x="40" y="638" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
+      消费者按需订阅：UI 只关心 Layer 3、性能监控看 Layer 2、工具调试看 Layer 4。
+    </text>
+  </svg>

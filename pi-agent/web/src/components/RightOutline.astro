@@ -1,0 +1,170 @@
+---
+// src/components/RightOutline.astro
+// Task 14.3a: IntersectionObserver-powered outline with URL hash sync
+// 标题可点击收起/展开，状态记到 localStorage（key: pi-agent-book:outline-collapsed）。
+interface Props { entry: any; }
+const { entry } = Astro.props;
+---
+<aside class="outline" id="right-outline" aria-label="本页大纲">
+  <button
+    class="outline-toggle"
+    type="button"
+    aria-expanded="true"
+    aria-controls="outline-nav"
+  >
+    <span class="outline-toggle-bar" aria-hidden="true"></span>
+    <span class="outline-toggle-label">ON THIS PAGE</span>
+    <svg class="outline-toggle-caret" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+      <path d="M2.5 3.5L5 6.5L7.5 3.5" stroke="currentColor" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+  <nav class="outline-nav" id="outline-nav">
+    <ul id="outline-list"></ul>
+  </nav>
+</aside>
+
+<script>
+  // 收起/展开：标题点击 → 切 class，状态持久化。
+  const COLLAPSE_KEY = 'pi-agent-book:outline-collapsed';
+  const aside = document.getElementById('right-outline');
+  if (aside) {
+    const btn = aside.querySelector<HTMLButtonElement>('.outline-toggle');
+    const nav = aside.querySelector<HTMLElement>('.outline-nav');
+    if (btn && nav) {
+      let collapsed = false;
+      try { collapsed = localStorage.getItem(COLLAPSE_KEY) === 'true'; } catch { /* noop */ }
+      if (collapsed) {
+        aside.classList.add('is-collapsed');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+
+      btn.addEventListener('click', () => {
+        const next = !aside.classList.contains('is-collapsed');
+        aside.classList.toggle('is-collapsed', next);
+        btn.setAttribute('aria-expanded', next ? 'false' : 'true');
+        try { localStorage.setItem(COLLAPSE_KEY, String(next)); } catch { /* noop */ }
+      });
+    }
+  }
+</script>
+
+<script>
+  // 模块级 observer：view transition 时先 disconnect 旧实例，避免内存泄漏与 stale 回调
+  let outlineObserver: IntersectionObserver | null = null;
+
+  function buildOutline() {
+    const list = document.getElementById('outline-list');
+    if (!list) return;
+
+    // 断开并清理旧 observer（初始加载时为 null，安全）
+    if (outlineObserver) {
+      outlineObserver.disconnect();
+      outlineObserver = null;
+    }
+
+    list.innerHTML = '';
+    document.querySelectorAll('.prose h2, .prose h3').forEach(h => {
+      if (!h.id) {
+        h.id = h.textContent!.toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g, '-').replace(/^-|-$/g, '');
+      }
+      const li = document.createElement('li');
+      li.className = h.tagName === 'H3' ? 'outline-h3' : 'outline-h2';
+      const a = document.createElement('a');
+      a.href = '#' + h.id;
+      a.textContent = h.textContent;
+      a.dataset.target = h.id;
+      li.appendChild(a);
+      list.appendChild(li);
+    });
+
+    // IntersectionObserver 当前节高亮 + URL hash 同步
+    const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('.outline-nav a'));
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        const id = e.target.id;
+        links.forEach(l => l.classList.toggle('is-current', l.dataset.target === id));
+        history.replaceState(null, '', '#' + id);
+      });
+    }, { rootMargin: '-30% 0px -60% 0px' });
+    outlineObserver = observer;
+    document.querySelectorAll('.prose h2, .prose h3').forEach(h => observer.observe(h));
+  }
+  buildOutline();
+  document.addEventListener('astro:page-load', buildOutline);
+</script>
+
+<style is:global>
+/* is:global：runtime 切 class 不依赖 scoped cid。
+   所有规则以 .outline- 前缀专属，不会污染全局。 */
+.outline { position: sticky; top: calc(var(--topbar-h) + var(--space-6)); max-height: calc(100vh - var(--topbar-h) - var(--space-6) - var(--space-5)); overflow-y: auto; }
+
+.outline-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3) var(--space-2) 0;
+  margin-bottom: var(--space-4);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--soft);
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.outline-toggle:hover {
+  color: var(--ink);
+  background: var(--paper-sunken);
+}
+.outline-toggle:focus-visible {
+  outline: var(--outline-w) solid var(--accent);
+  outline-offset: var(--outline-offset);
+}
+.outline-toggle-bar {
+  width: 3px;
+  height: 14px;
+  background: var(--soft);
+  border-radius: 2px;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease), height var(--dur-fast) var(--ease);
+}
+.outline-toggle:hover .outline-toggle-bar {
+  background: var(--accent);
+  height: 18px;
+}
+.outline-toggle-label {
+  flex: 1;
+  text-align: left;
+}
+.outline-toggle-caret {
+  flex-shrink: 0;
+  color: currentColor;
+  transition: transform var(--dur-base) var(--ease);
+}
+.outline.is-collapsed .outline-toggle-caret {
+  transform: rotate(-90deg);
+}
+.outline.is-collapsed .outline-nav {
+  display: none;
+}
+
+.outline-nav ul { list-style: none; padding: 0; margin: 0; }
+.outline-nav li { margin: 0; }
+.outline-nav a {
+  display: block;
+  padding: 6px 14px;
+  font-size: 14px;
+  color: var(--muted);
+  text-decoration: none;
+  border-left: var(--outline-w) solid var(--rule);
+  transition: all var(--dur-fast);
+}
+.outline-nav .outline-h3 a { padding-left: 32px; font-size: 13px; }
+.outline-nav a:hover { color: var(--ink); }
+.outline-nav a.is-current { color: var(--accent); border-left-color: var(--accent); font-weight: 500; }
+</style>

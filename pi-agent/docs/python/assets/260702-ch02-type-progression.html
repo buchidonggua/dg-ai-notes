@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>三层类型递进扩展</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #faf7f2;
+    --ink: #1c1917;
+    --muted: #57534e;
+    --soft: #a8a29e;
+    --rule: rgba(28,25,23,0.10);
+    --accent: #b5523a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink);
+    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    padding: 3rem 1.5rem 2rem; line-height: 1.5; }
+  .container { max-width: 1080px; margin: 0 auto; }
+  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  h1 { font-family: 'Instrument Serif', 'Source Han Serif SC', serif; font-weight: 400;
+    font-size: 32px; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 2rem; max-width: 62ch; }
+  .frame { background: rgba(28,25,23,0.02); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--soft);
+    letter-spacing: 0.1em; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 2 章 · TYPE PROGRESSION</p>
+  <h1>三层类型递进：从原子到材料</h1>
+  <p class="subtitle">底层定义原子类型，上层通过继承（extends）和联合类型（|）扩展——每层只加自己该关心的事，不改底层。LLM 只需要知道工具"长什么样"，Agent 需要知道"怎么执行"，coding-agent 还需要知道"怎么显示"。</p>
+
+  <div class="frame">
+  <svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+    </defs>
+
+    <rect width="960" height="600" fill="#faf7f2"/>
+
+    <!-- Column 1: Tool (pi-ai) -->
+    <g>
+      <rect x="40" y="60" width="240" height="48" rx="4" fill="rgba(28,25,23,0.05)"/>
+      <text x="60" y="80" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            letter-spacing="0.14em">LAYER 1 · PI-AI</text>
+      <text x="60" y="98" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif">原子层</text>
+
+      <rect x="40" y="120" width="240" height="280" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="40" y="120" width="240" height="32" rx="6" fill="rgba(181,82,58,0.08)"/>
+      <text x="60" y="140" fill="#b5523a" font-size="12" font-weight="600" font-family="'Geist', sans-serif">Tool</text>
+      <text x="220" y="140" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="end">interface</text>
+
+      <text x="60" y="176" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">LLM 需要知道的：</text>
+
+      <text x="60" y="200" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">name</text>
+      <text x="220" y="200" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">string</text>
+      <line x1="60" y1="208" x2="260" y2="208" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+      <text x="60" y="224" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">description</text>
+      <text x="220" y="224" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">string</text>
+      <line x1="60" y1="232" x2="260" y2="232" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+      <text x="60" y="248" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">parameters</text>
+      <text x="220" y="248" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">TSchema</text>
+      <line x1="60" y1="256" x2="260" y2="256" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+      <text x="60" y="290" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">关注点：</text>
+      <text x="60" y="306" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">"工具长什么样"</text>
+
+      <line x1="60" y1="340" x2="260" y2="340" stroke="rgba(181,82,58,0.30)" stroke-width="0.8" stroke-dasharray="3,3"/>
+      <text x="60" y="362" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+            letter-spacing="0.10em">CAN BE USED ALONE</text>
+      <text x="60" y="378" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif">可独立发布，无 Agent 依赖</text>
+    </g>
+
+    <!-- Column 2: AgentTool (pi-agent-core) -->
+    <g>
+      <rect x="360" y="60" width="240" height="48" rx="4" fill="rgba(28,25,23,0.05)"/>
+      <text x="380" y="80" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            letter-spacing="0.14em">LAYER 2 · PI-AGENT-CORE</text>
+      <text x="380" y="98" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif">分子层</text>
+
+      <rect x="360" y="120" width="240" height="280" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="360" y="120" width="240" height="32" rx="6" fill="rgba(181,82,58,0.08)"/>
+      <text x="380" y="140" fill="#b5523a" font-size="12" font-weight="600" font-family="'Geist', sans-serif">AgentTool</text>
+      <text x="540" y="140" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="end">extends Tool</text>
+
+      <text x="380" y="176" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">Agent 需要知道的：</text>
+
+      <text x="380" y="200" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">name</text>
+      <text x="540" y="200" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">↑ 继承</text>
+      <line x1="380" y1="208" x2="580" y2="208" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+      <text x="380" y="224" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">description</text>
+      <text x="540" y="224" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">↑ 继承</text>
+      <line x1="380" y1="232" x2="580" y2="232" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+      <text x="380" y="248" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">parameters</text>
+      <text x="540" y="248" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">↑ 继承</text>
+      <line x1="380" y1="256" x2="580" y2="256" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+      <rect x="380" y="262" width="200" height="2" fill="#b5523a" opacity="0.4"/>
+
+      <text x="380" y="282" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">+ label</text>
+      <text x="540" y="282" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">新增</text>
+      <line x1="380" y1="290" x2="580" y2="290" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+      <text x="380" y="306" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">+ prepareArguments()</text>
+      <text x="540" y="306" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">新增</text>
+      <line x1="380" y1="314" x2="580" y2="314" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+      <text x="380" y="330" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">+ execute()</text>
+      <text x="540" y="330" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">新增</text>
+      <line x1="380" y1="338" x2="580" y2="338" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+      <text x="380" y="354" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">+ executionMode</text>
+      <text x="540" y="354" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">新增</text>
+
+      <text x="380" y="384" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">关注点：</text>
+      <text x="380" y="398" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">"工具怎么执行"</text>
+    </g>
+
+    <!-- Column 3: ToolDefinition (pi-coding-agent) -->
+    <g>
+      <rect x="680" y="60" width="240" height="48" rx="4" fill="rgba(28,25,23,0.05)"/>
+      <text x="700" y="80" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            letter-spacing="0.14em">LAYER 3 · PI-CODING-AGENT</text>
+      <text x="700" y="98" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif">材料层</text>
+
+      <rect x="680" y="120" width="240" height="280" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="680" y="120" width="240" height="32" rx="6" fill="rgba(181,82,58,0.08)"/>
+      <text x="700" y="140" fill="#b5523a" font-size="12" font-weight="600" font-family="'Geist', sans-serif">ToolDefinition</text>
+      <text x="860" y="140" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="end">extends AgentTool</text>
+
+      <text x="700" y="176" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">产品层需要的：</text>
+
+      <text x="700" y="200" fill="#a8a29e" font-size="10" font-family="'Geist Mono', monospace">↑ AgentTool 全部字段</text>
+      <line x1="700" y1="208" x2="900" y2="208" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+      <rect x="700" y="214" width="200" height="2" fill="#b5523a" opacity="0.4"/>
+
+      <text x="700" y="234" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">+ promptSnippet</text>
+      <text x="860" y="234" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">+ 自动拼 prompt</text>
+      <line x1="700" y1="242" x2="900" y2="242" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+      <text x="700" y="258" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">+ promptGuidelines</text>
+      <text x="860" y="258" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">+ 使用守则</text>
+      <line x1="700" y1="266" x2="900" y2="266" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+      <text x="700" y="282" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">+ renderCall()</text>
+      <text x="860" y="282" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">+ 自定义渲染</text>
+      <line x1="700" y1="290" x2="900" y2="290" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+      <text x="700" y="306" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">+ renderShell</text>
+      <text x="860" y="306" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">+ 渲染模式</text>
+      <line x1="700" y1="314" x2="900" y2="314" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
+
+      <text x="700" y="330" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">+ execute(ctx)</text>
+      <text x="860" y="330" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">+ 注入 ExtContext</text>
+
+      <text x="700" y="362" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">关注点：</text>
+      <text x="700" y="378" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">"工具怎么显示和接入</text>
+      <text x="700" y="392" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">扩展系统"</text>
+    </g>
+
+    <!-- Extension arrows between columns -->
+    <path d="M 280 240 L 360 240" stroke="#b5523a" stroke-width="1.2" fill="none" marker-end="url(#arrow-accent)"/>
+    <rect x="290" y="226" width="60" height="14" rx="2" fill="#faf7f2"/>
+    <text x="320" y="236" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">extends</text>
+
+    <path d="M 600 240 L 680 240" stroke="#b5523a" stroke-width="1.2" fill="none" marker-end="url(#arrow-accent)"/>
+    <rect x="610" y="226" width="60" height="14" rx="2" fill="#faf7f2"/>
+    <text x="640" y="236" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">extends</text>
+
+    <!-- Bottom: 设计原则 -->
+    <rect x="40" y="448" width="880" height="100" rx="6" fill="rgba(181,82,58,0.05)" stroke="rgba(181,82,58,0.30)" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="60" y="476" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">DESIGN PRINCIPLE</text>
+
+    <text x="60" y="500" fill="#1c1917" font-size="12" font-family="'Instrument Serif', 'Source Han Serif SC', serif" font-style="italic">
+      "底层定义最小类型，上层通过继承和联合类型扩展——每一层只加自己该关心的字段，不改底层。"
+    </text>
+    <text x="60" y="524" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">
+      这保证了底层可以独立发布和复用。别人可以只引用 Tool 类型，不引入整个 Agent 框架。
+    </text>
+
+    <!-- Bottom label -->
+    <text x="40" y="582" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
+      类型扩展链条 · 同样的"消息"也走这条路：Message → AgentMessage → 业务专用消息类型
+    </text>
+  </svg>
+  </div>
+
+  <div class="footer">
+    <span>PI-AGENT · 项目原理二次整理版</span>
+    <span>260702 · CH02 · TYPE PROGRESSION</span>
+  </div>
+</div>
+</body>
+</html>

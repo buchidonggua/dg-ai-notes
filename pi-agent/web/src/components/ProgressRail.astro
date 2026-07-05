@@ -1,0 +1,32 @@
+---
+// src/components/ProgressRail.astro
+// Fixed 2px bar at top showing scroll progress.
+---
+
+<div class="progress-rail" id="progress-rail" role="progressbar" aria-label="阅读进度"></div>
+
+<script>
+  const rail = document.getElementById('progress-rail')!;
+  const update = () => {
+    const total = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = total > 0 ? (window.scrollY / total) * 100 : 0;
+    rail.style.width = pct + '%';
+  };
+  window.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('load', update);
+  // Initial update in case load already fired
+  update();
+</script>
+
+<style>
+  .progress-rail {
+    position: fixed;
+    top: var(--topbar-h);
+    left: 0;
+    height: 2px;
+    background: var(--accent);
+    width: 0;
+    z-index: 49;
+    transition: width 50ms linear;
+  }
+</style>

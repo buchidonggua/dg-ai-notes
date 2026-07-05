@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>压缩的完整链路</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --paper: #faf7f2; --ink: #1c1917; --muted: #57534e; --soft: #a8a29e;
+    --rule: rgba(28,25,23,0.10); --accent: #b5523a; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink);
+    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    padding: 3rem 1.5rem 2rem; line-height: 1.5; }
+  .container { max-width: 1080px; margin: 0 auto; }
+  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  h1 { font-family: 'Instrument Serif', 'Source Han Serif SC', serif; font-weight: 400;
+    font-size: 32px; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 2rem; max-width: 64ch; }
+  .frame { background: rgba(28,25,23,0.02); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--soft);
+    letter-spacing: 0.1em; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 9 章 · END-TO-END FLOW</p>
+  <h1>压缩的完整链路</h1>
+  <p class="subtitle">从触发判断到下次运行时重建上下文——压缩不是一个动作，而是 6 个步骤的完整流程。两次压缩之间靠 CompactionEntry 持久化连接。</p>
+
+  <div class="frame">
+  <svg viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+    </defs>
+    <rect width="960" height="540" fill="#faf7f2"/>
+
+    <!-- 6 boxes in horizontal flow -->
+    <!-- Box 1: 触发判断 -->
+    <g>
+      <rect x="20" y="80" width="140" height="180" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="20" y="80" width="140" height="32" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="90" y="100" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.10em">STEP 1</text>
+      <text x="90" y="130" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">触发判断</text>
+      <line x1="40" y1="146" x2="140" y2="146" stroke="rgba(28,25,23,0.10)" stroke-width="0.6"/>
+      <text x="32" y="168" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">contextTokens &gt;</text>
+      <text x="32" y="182" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">contextWindow -</text>
+      <text x="32" y="196" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">reserveTokens?</text>
+      <text x="32" y="222" fill="#a8a29e" font-size="8" font-family="'Geist Mono', monospace">shouldCompact()</text>
+      <text x="32" y="244" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" font-style="italic">emit</text>
+      <text x="32" y="256" fill="#a8a29e" font-size="8" font-family="'Geist Mono', monospace">compaction_start</text>
+    </g>
+
+    <line x1="160" y1="170" x2="180" y2="170" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- Box 2: 找切割点 -->
+    <g>
+      <rect x="180" y="80" width="140" height="180" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="180" y="80" width="140" height="32" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="250" y="100" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.10em">STEP 2</text>
+      <text x="250" y="130" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">找切割点</text>
+      <line x1="200" y1="146" x2="300" y2="146" stroke="rgba(28,25,23,0.10)" stroke-width="0.6"/>
+      <text x="192" y="168" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">从新→旧累积 token</text>
+      <text x="192" y="184" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">跳过 toolResult</text>
+      <text x="192" y="200" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">找最近合法位置</text>
+      <text x="192" y="228" fill="#a8a29e" font-size="8" font-family="'Geist Mono', monospace">findCutPoint()</text>
+    </g>
+
+    <line x1="320" y1="170" x2="340" y2="170" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- Box 3: 分割消息 -->
+    <g>
+      <rect x="340" y="80" width="140" height="180" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="340" y="80" width="140" height="32" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="410" y="100" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.10em">STEP 3</text>
+      <text x="410" y="130" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">分割消息</text>
+      <line x1="360" y1="146" x2="460" y2="146" stroke="rgba(28,25,23,0.10)" stroke-width="0.6"/>
+      <text x="352" y="170" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif">messagesToSummarize</text>
+      <text x="352" y="184" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif">→ 旧消息</text>
+      <text x="352" y="208" fill="#2d6e3c" font-size="9" font-family="'Geist', sans-serif">kept</text>
+      <text x="352" y="222" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif">→ 保留消息</text>
+      <text x="352" y="244" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" font-style="italic">处理 Turn 分割</text>
+    </g>
+
+    <line x1="480" y1="170" x2="500" y2="170" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- Box 4: 生成摘要 (focal) -->
+    <g>
+      <rect x="500" y="80" width="140" height="180" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.4"/>
+      <rect x="500" y="80" width="140" height="32" rx="6" fill="rgba(181,82,58,0.10)"/>
+      <text x="570" y="100" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.10em">STEP 4</text>
+      <text x="570" y="130" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">生成摘要 ★</text>
+      <line x1="520" y1="146" x2="620" y2="146" stroke="rgba(181,82,58,0.30)" stroke-width="0.6"/>
+      <text x="512" y="166" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">调 LLM 生成</text>
+      <text x="512" y="180" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">结构化摘要</text>
+      <text x="512" y="200" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif">6 个 section：</text>
+      <text x="512" y="212" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif">Goal/Constraints/</text>
+      <text x="512" y="222" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif">Progress/Decisions/</text>
+      <text x="512" y="232" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif">Next/Critical</text>
+      <text x="512" y="250" fill="#a8a29e" font-size="8" font-family="'Geist Mono', monospace">+ previousSummary</text>
+    </g>
+
+    <line x1="640" y1="170" x2="660" y2="170" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- Box 5: 存储 -->
+    <g>
+      <rect x="660" y="80" width="140" height="180" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="660" y="80" width="140" height="32" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="730" y="100" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.10em">STEP 5</text>
+      <text x="730" y="130" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">存储 Entry</text>
+      <line x1="680" y1="146" x2="780" y2="146" stroke="rgba(28,25,23,0.10)" stroke-width="0.6"/>
+      <text x="672" y="170" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">CompactionEntry</text>
+      <text x="672" y="186" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">追加到 Session Tree</text>
+      <text x="672" y="208" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" font-style="italic">不立即改 context</text>
+      <text x="672" y="232" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif">emit</text>
+      <text x="672" y="244" fill="#a8a29e" font-size="8" font-family="'Geist Mono', monospace">compaction_end</text>
+    </g>
+
+    <line x1="800" y1="170" x2="820" y2="170" stroke="#b5523a" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow-accent)"/>
+
+    <!-- Box 6: 重建 -->
+    <g>
+      <rect x="820" y="80" width="120" height="180" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.4"/>
+      <rect x="820" y="80" width="120" height="32" rx="6" fill="rgba(181,82,58,0.10)"/>
+      <text x="880" y="100" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.10em">STEP 6</text>
+      <text x="880" y="130" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">下次重建</text>
+      <line x1="836" y1="146" x2="924" y2="146" stroke="rgba(181,82,58,0.30)" stroke-width="0.6"/>
+      <text x="832" y="170" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">buildSession</text>
+      <text x="832" y="184" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">Context()</text>
+      <text x="832" y="206" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif">遍历路径</text>
+      <text x="832" y="220" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif">遇 CompactionEntry</text>
+      <text x="832" y="232" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif">→ 替换旧消息</text>
+      <text x="832" y="250" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" font-style="italic">★ 跨运行时</text>
+    </g>
+
+    <!-- Phase labels -->
+    <text x="270" y="50" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em" text-anchor="middle">──── 当前运行 ────</text>
+    <text x="880" y="50" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em" text-anchor="middle">─ 下次运行 ─</text>
+
+    <!-- Bottom insight -->
+    <line x1="20" y1="300" x2="940" y2="300" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+    <text x="20" y="324" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">KEY INSIGHT</text>
+
+    <rect x="20" y="340" width="920" height="172" rx="6" fill="rgba(181,82,58,0.04)" stroke="rgba(181,82,58,0.30)" stroke-width="1" stroke-dasharray="4,4"/>
+
+    <text x="40" y="368" fill="#1c1917" font-size="11" font-family="'Geist', sans-serif" font-weight="600">CompactionEntry 是连接两次运行的桥梁</text>
+
+    <text x="40" y="392" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">
+      压缩时：在 Session Tree 上追加一个 CompactionEntry 节点（记录 cutPoint、summary、kept messageIds）
+    </text>
+    <text x="40" y="412" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">
+      下次启动时：buildSessionContext() 遍历从 leaf 到 root 的路径
+    </text>
+    <text x="40" y="432" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">
+      → 遇到 CompactionEntry → 生成 CompactionSummaryMessage 替换旧消息 → 之后的消息正常 push
+    </text>
+
+    <text x="40" y="468" fill="#b5523a" font-size="10" font-family="'Geist', sans-serif" font-style="italic">
+      关键：context 不立即改变，而是"下次构造时再生"。这让压缩本身是无副作用的——失败了大不了不压缩。
+    </text>
+    <text x="40" y="490" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
+      CompactionSummaryMessage 通过 convertToLlm 翻译成 &lt;summary&gt; 标签的 UserMessage 发给 LLM。
+    </text>
+  </svg>
+  </div>
+
+  <div class="footer">
+    <span>PI-AGENT · 项目原理二次整理版</span>
+    <span>260702 · CH08 · END-TO-END FLOW</span>
+  </div>
+</div>
+</body>
+</html>

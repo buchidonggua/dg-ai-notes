@@ -1,0 +1,36 @@
+{
+  "name": "pi-agent-book",
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "prebuild": "node scripts/check-counterpart.mjs",
+    "check:sync": "node scripts/check-sync.mjs",
+    "check:counterpart": "node scripts/check-counterpart.mjs",
+    "build:pdf": "node scripts/build-pdf.mjs --variant=ts && node scripts/build-pdf.mjs --variant=python",
+    "build:pdf:ts": "node scripts/build-pdf.mjs --variant=ts",
+    "build:pdf:python": "node scripts/build-pdf.mjs --variant=python"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "^4.3.14",
+    "@astrojs/react": "^4.2.7",
+    "astro": "^5.0.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/mdast": "^4.0.4",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "gray-matter": "^4.0.3",
+    "pdf-lib": "^1.17.1",
+    "playwright": "^1.61.1",
+    "typescript": "^5.9.3",
+    "unist-util-visit": "^5.1.0"
+  }
+}

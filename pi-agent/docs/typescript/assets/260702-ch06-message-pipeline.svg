@@ -1,0 +1,85 @@
+  <svg viewBox="0 0 960 480" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+    </defs>
+    <rect width="960" height="480" fill="#faf7f2"/>
+
+    <!-- Input: AgentMessage[] -->
+    <rect x="20" y="180" width="180" height="120" rx="6" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+    <rect x="20" y="180" width="180" height="32" rx="6" fill="rgba(28,25,23,0.05)"/>
+    <text x="110" y="200" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">AgentMessage[7]</text>
+    <text x="36" y="228" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">User</text>
+    <text x="36" y="244" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">Assistant</text>
+    <text x="36" y="260" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">ToolResult</text>
+    <text x="36" y="276" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif">BashExecution</text>
+    <text x="36" y="292" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif">CompactionSummary</text>
+
+    <line x1="200" y1="240" x2="248" y2="240" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- Step 1: transformContext -->
+    <rect x="252" y="180" width="200" height="120" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+    <rect x="252" y="180" width="200" height="32" rx="6" fill="rgba(28,25,23,0.05)"/>
+    <text x="352" y="200" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">transformContext</text>
+
+    <text x="268" y="232" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">同层变换（可选）</text>
+    <text x="268" y="252" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">· 裁剪/注入/压缩</text>
+    <text x="268" y="268" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">· 类型不变</text>
+    <text x="268" y="288" fill="#a8a29e" font-size="8" font-family="'Geist Mono', monospace">input: AgentMessage[]</text>
+    <text x="268" y="298" fill="#a8a29e" font-size="8" font-family="'Geist Mono', monospace">output: AgentMessage[]</text>
+
+    <line x1="452" y1="240" x2="500" y2="240" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- Step 2: convertToLlm -->
+    <rect x="504" y="180" width="200" height="120" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.4"/>
+    <rect x="504" y="180" width="200" height="32" rx="6" fill="rgba(181,82,58,0.10)"/>
+    <text x="604" y="200" fill="#b5523a" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">convertToLlm</text>
+
+    <text x="520" y="232" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">跨层翻译（必须）</text>
+    <text x="520" y="252" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">· 过滤自定义消息</text>
+    <text x="520" y="268" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">· 翻译为标准格式</text>
+    <text x="520" y="288" fill="#a8a29e" font-size="8" font-family="'Geist Mono', monospace">input: AgentMessage[]</text>
+    <text x="520" y="298" fill="#a8a29e" font-size="8" font-family="'Geist Mono', monospace">output: Message[3]</text>
+
+    <line x1="704" y1="240" x2="752" y2="240" stroke="#b5523a" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+
+    <!-- Output: Message[] -->
+    <rect x="756" y="180" width="184" height="120" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.2"/>
+    <rect x="756" y="180" width="184" height="32" rx="6" fill="rgba(181,82,58,0.10)"/>
+    <text x="848" y="200" fill="#b5523a" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Message[3]</text>
+    <text x="772" y="234" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">User</text>
+    <text x="772" y="256" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">Assistant</text>
+    <text x="772" y="278" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">ToolResult</text>
+    <text x="772" y="298" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" font-style="italic">→ 发给 LLM</text>
+
+    <!-- Annotation top -->
+    <text x="352" y="160" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          text-anchor="middle">类型不变</text>
+    <text x="604" y="160" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+          text-anchor="middle">类型翻译</text>
+
+    <!-- excludeFromContext branch -->
+    <line x1="604" y1="300" x2="604" y2="340" stroke="#b5523a" stroke-width="0.8" stroke-dasharray="3,2"/>
+    <rect x="452" y="344" width="304" height="44" rx="4" fill="rgba(181,82,58,0.04)" stroke="rgba(181,82,58,0.30)" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="604" y="364" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">
+      excludeFromContext=true 的消息
+    </text>
+    <text x="604" y="380" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle" font-style="italic">
+      在 convertToLlm 时被过滤，不发给 LLM
+    </text>
+
+    <!-- Bottom principle -->
+    <line x1="40" y1="412" x2="920" y2="412" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+    <text x="40" y="436" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">SEPARATION OF CONCERNS</text>
+    <text x="220" y="436" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">
+      先 transformContext（同层裁剪/注入）→ 再 convertToLlm（跨层翻译）
+    </text>
+    <text x="40" y="458" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
+      为什么分两步？因为"裁剪/注入"是 Agent 自己的事（操作 7 种类型），"翻译"是 LLM 边界的事（输出 3 种类型）。职责不混淆。
+    </text>
+  </svg>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>steering vs followUp：两种外部消息注入</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --paper: #faf7f2; --ink: #1c1917; --muted: #57534e; --soft: #a8a29e;
+    --rule: rgba(28,25,23,0.10); --accent: #b5523a; --green: #2d6e3c; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink);
+    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    padding: 3rem 1.5rem 2rem; line-height: 1.5; }
+  .container { max-width: 1080px; margin: 0 auto; }
+  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  h1 { font-family: 'Instrument Serif', 'Source Han Serif SC', serif; font-weight: 400;
+    font-size: 32px; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 2rem; max-width: 64ch; }
+  .frame { background: rgba(28,25,23,0.02); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--soft);
+    letter-spacing: 0.1em; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 3 章 · COMPARISON</p>
+  <h1>steering vs followUp：两种外部消息注入</h1>
+  <p class="subtitle">两个都是"外部消息进 Agent"的机制，但语义截然不同。steering 是"紧急插队"——敲门递纸条；followUp 是"排队等叫号"——开完会翻信箱。</p>
+
+  <div class="frame">
+  <svg viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg">
+    <rect width="960" height="540" fill="#faf7f2"/>
+
+    <!-- divider -->
+    <line x1="480" y1="20" x2="480" y2="520" stroke="rgba(28,25,23,0.15)" stroke-width="0.8" stroke-dasharray="4,4"/>
+
+    <!-- ===== LEFT: steering ===== -->
+    <rect x="40" y="40" width="400" height="56" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+    <text x="240" y="64" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.14em">STEERING · 紧急插队</text>
+    <text x="240" y="84" fill="#57534e" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">
+      生活类比：开会时有人敲门递纸条
+    </text>
+
+    <!-- Timeline with turns -->
+    <text x="60" y="140" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">循环时间线</text>
+    <line x1="60" y1="148" x2="440" y2="148" stroke="#1c1917" stroke-width="1"/>
+
+    <!-- Turn markers -->
+    <rect x="80" y="138" width="80" height="20" rx="2" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+    <text x="120" y="152" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">Turn 1</text>
+
+    <rect x="180" y="138" width="80" height="20" rx="2" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+    <text x="220" y="152" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">Turn 2</text>
+
+    <rect x="280" y="138" width="80" height="20" rx="2" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1"/>
+    <text x="320" y="152" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">Turn 3</text>
+
+    <!-- steering arrives mid-turn -->
+    <line x1="240" y1="158" x2="240" y2="220" stroke="#b5523a" stroke-width="1.2" stroke-dasharray="3,2"/>
+    <rect x="200" y="220" width="80" height="32" rx="4" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+    <text x="240" y="240" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">steering 入队</text>
+
+    <!-- check at turn end -->
+    <line x1="260" y1="158" x2="260" y2="178" stroke="#b5523a" stroke-width="0.8"/>
+    <text x="262" y="172" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace">每圈检查</text>
+
+    <text x="240" y="284" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">
+      → 在 Turn 3 开头注入
+    </text>
+    <text x="240" y="298" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">
+      （当前任务被中断）
+    </text>
+
+    <!-- Bottom: characteristics -->
+    <rect x="60" y="340" width="360" height="160" rx="6" fill="rgba(181,82,58,0.04)" stroke="rgba(181,82,58,0.30)" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="80" y="364" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" letter-spacing="0.14em">CHARACTERISTICS</text>
+    <text x="80" y="388" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">时机：每圈内层循环开头 + 结尾</text>
+    <text x="80" y="408" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">来源：用户实时输入的新指令</text>
+    <text x="80" y="428" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">影响：会驱动循环继续（不等当前完成）</text>
+    <text x="80" y="460" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">getSteeringMessages()</text>
+    <text x="80" y="480" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
+      用户让 Agent 修 bug，中途想起"也检查测试文件"
+    </text>
+
+    <!-- ===== RIGHT: followUp ===== -->
+    <rect x="520" y="40" width="400" height="56" rx="6" fill="rgba(45,110,60,0.06)" stroke="#2d6e3c" stroke-width="1"/>
+    <text x="720" y="64" fill="#2d6e3c" font-size="11" font-weight="600" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.14em">FOLLOWUP · 排队等叫号</text>
+    <text x="720" y="84" fill="#57534e" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">
+      生活类比：开完会翻信箱
+    </text>
+
+    <!-- Timeline -->
+    <text x="540" y="140" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">循环时间线</text>
+    <line x1="540" y1="148" x2="920" y2="148" stroke="#1c1917" stroke-width="1"/>
+
+    <rect x="560" y="138" width="80" height="20" rx="2" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+    <text x="600" y="152" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">Turn 1</text>
+
+    <rect x="660" y="138" width="80" height="20" rx="2" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+    <text x="700" y="152" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">Turn 2</text>
+
+    <rect x="760" y="138" width="80" height="20" rx="2" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+    <text x="800" y="152" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">Turn 3 (停)</text>
+
+    <!-- End of inner loop -->
+    <line x1="800" y1="158" x2="800" y2="200" stroke="#57534e" stroke-width="1"/>
+    <text x="812" y="180" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">内层循环结束</text>
+
+    <rect x="760" y="200" width="120" height="36" rx="4" fill="rgba(45,110,60,0.06)" stroke="#2d6e3c" stroke-width="1"/>
+    <text x="820" y="220" fill="#2d6e3c" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">检查 followUp</text>
+    <text x="820" y="232" fill="#2d6e3c" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">队列</text>
+
+    <!-- New turn restarts inner loop -->
+    <line x1="820" y1="236" x2="820" y2="270" stroke="#2d6e3c" stroke-width="1.2" stroke-dasharray="3,2"/>
+    <rect x="760" y="270" width="120" height="20" rx="2" fill="rgba(45,110,60,0.08)" stroke="#2d6e3c" stroke-width="1"/>
+    <text x="820" y="284" fill="#2d6e3c" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">新 Turn（续命）</text>
+
+    <text x="720" y="304" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">
+      → 在同一个 Trace 内继续跑
+    </text>
+
+    <!-- Bottom: characteristics -->
+    <rect x="540" y="340" width="360" height="160" rx="6" fill="rgba(45,110,60,0.04)" stroke="rgba(45,110,60,0.30)" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="560" y="364" fill="#2d6e3c" font-size="10" font-family="'Geist Mono', monospace" letter-spacing="0.14em">CHARACTERISTICS</text>
+    <text x="560" y="388" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">时机：内层循环全部结束后</text>
+    <text x="560" y="408" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">来源：系统追加（如"顺便跑测试"）</text>
+    <text x="560" y="428" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">影响：触发外层循环，内层循环重开</text>
+    <text x="560" y="460" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">getFollowUpMessages()</text>
+    <text x="560" y="480" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
+      Agent 完成任务后，系统追加"顺便跑个测试"
+    </text>
+  </svg>
+  </div>
+
+  <div class="footer">
+    <span>PI-AGENT · 项目原理二次整理版</span>
+    <span>260702 · CH03 · COMPARISON</span>
+  </div>
+</div>
+</body>
+</html>

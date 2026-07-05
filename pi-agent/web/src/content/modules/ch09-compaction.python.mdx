@@ -1,0 +1,604 @@
+---
+title: 第9章：上下文压缩 —— 当对话太长怎么办
+module: M09
+displayOrder: 9
+status: published
+variant: python
+counterpart: ch09-compaction
+slug: ch09-compaction.python
+summary: 上下文压缩：把 50 轮对话压缩成一段结构化摘要，让 Agent 继续记住之前发生了什么。
+prev: ch08-context-engineering
+next: ch10-session
+diagrams:
+  - id: 260702-ch09-before-after
+    file: /assets/260702-ch09-before-after.svg
+    caption: 压缩前后 Token 占用对比
+  - id: 260702-ch09-cut-point
+    file: /assets/260702-ch09-cut-point.svg
+    caption: 压缩的切割点算法
+  - id: 260702-ch09-compaction-flow
+    file: /assets/260702-ch09-compaction-flow.svg
+    caption: 压缩的完整链路
+---
+
+import Diagram from '../../components/Diagram.astro';
+
+
+
+第 8 章我们看了上下文工程的全景——其中 `transformContext` 只是扩展点，真正"动手压缩"的核心机制是 Compaction。当对话越来越长，消息越来越多，最终会超出模型的上下文窗口（Claude 200K、GPT 128K）。这时候需要一件更激进的事——**压缩对话历史**。
+
+这一章就看 Pi 怎么在上下文窗口快满时，把 50 轮对话压缩成一段摘要，让 Agent 继续"记住"之前发生了什么。
+
+---
+
+## 一、问题：对话越来越长，窗口装不下了
+
+Agent 和 LLM 的对话是"有状态的"——每轮都把之前的完整历史发给模型。你和 Agent 聊了 50 轮，每轮可能有几千 token 的工具结果。算一算：50 轮 × 平均 3000 token/轮 = 150,000 token。Claude Sonnet 的上下文窗口是 200,000 token。快满了。
+
+<Diagram file="/assets/260702-ch09-before-after.svg" caption="压缩前后 Token 占用对比" id="260702-ch09-before-after" />
+
+**配图说明**：左侧红色条带——185K token 几乎塞满 200K 窗口。右侧绿色——压缩后只剩 60K（10K 摘要 + 50K 近期消息），腾出 140K 可继续聊。底部说明压缩是有损的但保留了目标/约束/决策等结构化信息。
+
+满了会怎样？API 会报错："prompt is too long"。对话被迫中断。
+
+最直觉的解决方案是删旧消息——把前 30 轮扔掉，只保留最近 20 轮。但这样 Agent 就"失忆"了——它不记得你最初让它做什么、不记得之前做了什么决策、不记得改了哪些文件。
+
+Pi 的解法是**压缩（Compaction）**：把旧消息变成一段结构化摘要，用摘要替代原始消息。这样既腾出了空间，又保留了关键信息。
+
+```
+压缩前（185,000 token）：
+┌── 第1-30轮（135,000 token）──┬── 第31-50轮（50,000 token）──┐
+│  原始消息（大量工具结果）      │  原始消息（最近的上下文）      │
+└──────────────────────────┴──────────────────────────┘
+
+压缩后（约 60,000 token）：
+┌── 摘要（约 10,000 token）──┬── 第31-50轮（50,000 token）──┐
+│  结构化总结（目标、进度、     │  原始消息（完整保留）          │
+│  决策、文件跟踪……）          │                              │
+└────────────────────────┴──────────────────────────┘
+```
+
+Agent 仍然"记得"前 30 轮做了什么——只是记忆从"原始录像"变成了"摘要笔记"。
+
+### 一个关键时序：压缩发生在两轮对话之间
+
+在读后面所有细节之前，先把一条核心时序刻在脑子里——**压缩不是在对话进行中触发的，而是在两轮对话之间发生的**：
+
+```
+用户问 → Agent 回答 → (Agent 这一轮结束，发 agent_end 事件)
+                              │
+                              ▼
+                     检查 token：超阈值了吗？
+                              │
+                   ┌──────────┴──────────┐
+                   ▼                     ▼
+                没超 → 等下一轮       超了 → 立刻压缩
+                                       ├─ 找切割点
+                                       ├─ 生成摘要
+                                       └─ 把 CompactionEntry 写进 Session Tree
+                                              │
+                                              ▼
+                              下一轮用户开始问时：
+                              buildSessionContext() 从 Session Tree 重建上下文
+                              → CompactionSummaryMessage 替代旧消息
+                              → LLM 看到的是"摘要 + 近期消息"
+```
+
+**这是理解整章的钥匙**——所有细节（什么时候触发、在哪切、怎么生成摘要、结果怎么生效）都围绕这个"两轮之间"的时序展开。后续每一节都是这条主线的具体环节。
+
+---
+
+## 二、什么时候压缩：红灯亮起
+
+### 触发条件
+
+压缩不是随便触发的，它有一个明确的"红线"：
+
+```python
+# ============================================================
+# 【Python 改写】shouldCompact 触发判断函数
+# 原文 TS:
+#   function shouldCompact(contextTokens, contextWindow, settings): boolean {
+#       if (!settings.enabled) return false;
+#       return contextTokens > contextWindow - settings.reserveTokens;
+#   }
+# ============================================================
+
+# 概念对照：TS 的 boolean → Python 的 bool；
+# TS 的 `!` 取反 → Python 的 `not`
+
+def should_compact(context_tokens: int, context_window: int, settings) -> bool:
+    if not settings.enabled:
+        return False
+    return context_tokens > context_window - settings.reserve_tokens
+```
+
+代入具体数字：`contextWindow = 200,000`，`reserveTokens = 16,384`。
+
+当 `contextTokens > 200,000 - 16,384 = 183,616` 时，触发压缩。
+
+`reserveTokens` 是为 LLM 回复预留的空间——你不能把上下文窗口塞满到 200,000，否则模型连回复的空间都没有了。
+
+### Token 估算：不精确但够用
+
+一个关键问题：怎么知道当前有多少 token？精确计算需要用 tokenizer，但不同模型的 tokenizer 不同，而且计算开销大。Pi 用了一个简单粗暴的方法：
+
+```python
+# ============================================================
+# 【Python 改写】estimateTokens 简易 token 估算
+# 实际签名（compaction.ts:256-296）：estimateTokens(message: AgentMessage) -> int
+# 对每个 message 取其文本字符数 chars，然后 return math.ceil(chars / 4)
+# 原文 TS:
+#   function estimateTokens(message: AgentMessage): number {
+#       let chars = 0;
+#       // ...按 message.role 分别累加 text/thinking/toolCall/command/output/summary 的字符数
+#       return Math.ceil(chars / 4);  // chars / 4
+#   }
+# ============================================================
+
+# 概念对照：TS 的 Math.ceil(x) → Python 的 math.ceil(x)
+
+import math
+
+def estimate_tokens(message: AgentMessage) -> int:
+    chars = 0
+    # ...按 message.role 分别累加 text/thinking/tool_call/command/output/summary 的字符数
+    return math.ceil(chars / 4)   # chars / 4
+```
+
+一个英文字符大约 0.25 token（4 个字符 ≈ 1 token，估算与实际接近）。**中文是反向偏差**：1 个汉字实际大约 1-2 token，但 `chars/4` 只算成 0.25 token——**严重低估**中文占比高的对话。这意味着纯中文场景下，Pi 觉得"还没到压缩阈值"，实际 token 已经接近上限。这是一个已知的精度问题，但 `chars/4` 在英文为主时足够准，且实现极简。
+
+**为什么用不精确的估算？** 因为宁可高估、不可低估。高估了最多多压缩一次（无害）；低估了 API 会报错（有害）。这是一种"保守策略"——用精度换安全。
+
+### 两种触发场景
+
+| 场景 | 什么时候触发 | 意味着什么 |
+|------|------------|-----------|
+| **预防性压缩** | token 超过阈值（183,616）但还没报错 | 提前压缩，避免 API 报错 |
+| **应急性压缩** | API 返回上下文溢出错误 | 补救措施，先压缩再重试 |
+
+预防性压缩是常态——在问题发生之前就处理掉。应急性压缩是兜底——万一估算偏了，API 真报错了，还有一道防线。
+
+---
+
+## 三、在哪切：切割点算法
+
+知道该压缩了，但从哪里"下刀"？不能随便切——有些位置切了会破坏数据完整性。
+
+<Diagram file="/assets/260702-ch09-cut-point.svg" caption="压缩的切割点算法" id="260702-ch09-cut-point" />
+
+**配图说明**：消息序列条带（entries 0-9），每条标注类型。从最新往旧累积 token，toolResult 后不能切（红 ✗），user / assistant 后可以（绿 ✓）。最终选定 entry 7 (assistant) 为切割点——左侧 0-6 被压缩成 CompactionSummaryMessage，右侧 7-9 保留。注意：切在 assistant 上会把 entry 4 (user) 和 entry 5-7 (assistant+toolResult) 这个 Turn 切断，触发 turnPrefix 处理（§五详讲）。
+
+### 不是哪里都能切
+
+LLM 的对话历史有严格的结构约束。比如 `ToolResult` 消息必须紧跟在触发它的 `AssistantMessage`（含 ToolCall）之后。如果你把 ToolCall 留在"保留区"、把 ToolResult 切到"压缩区"，模型会看到"我调用了 read 工具，但结果在哪？"——上下文断裂。
+
+所以切割点必须是**有效切割点**——不会破坏消息对的位置。
+
+```
+entry:  0     1     2      3       4     5      6       7      8
+       ┌─────┬─────┬──────┬───────┬─────┬──────┬───────┬──────┬─────┐
+       │ hdr │ usr │ ass  │ tool  │ usr │ ass  │ tool  │ ass  │tool │
+       └─────┴─────┴──────┴───────┴─────┴──────┴───────┴──────┴─────┘
+
+有效切割点 = [1(usr), 2(ass), 4(usr), 5(ass), 7(ass)]
+                                                       ↑
+                                          注意：3(tool)、6(tool)、8(tool) 全部被排除
+```
+
+源码 [findValidCutPoints](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/compaction/compaction.ts#L305) 的规则很清楚：**`user` 和 `assistant` 都是合法切点，`toolResult` 不是**。注释里的关键说明是：
+
+> When we cut at an assistant message with tool calls, its tool results follow it and will be kept.
+
+### 切点的语义：保留区的起点
+
+理解切割点要抓住一个关键——**切点不是"被切掉的最后一条"，而是"保留区的第一条"**。这个语义非常重要，会澄清你接下来的所有疑问。
+
+切点 = user，意味着什么？user 自己进保留区，**它后面的 assistant 和 toolResult 也都跟着进保留区**——这个 user 开头的完整 Turn 全部保留。被压缩的是 user **之前**的消息。
+
+```
+例子：切点选 entry 4 (usr)
+entry:  0     1     2      3       4     5      6       7      8
+       hdr   usr   ass   tool    [usr]  ass   tool    ass   tool
+       └──────── 压缩区 ────────┘  └────── 保留区 ──────────────┘
+                                   ↑
+                              切点 = 保留区第一条
+                              user + 后面的 ass + tool 全部保留
+                              → 这个 Turn 完整！
+```
+
+所以在 user 后切**是最安全的选择**——天然保证 Turn 完整，因为 user 后面跟着的 assistant 和 toolResult 都会跟着进保留区。
+
+### 向后遍历：保护最重要的东西
+
+确定有效切割点后，从哪里切？Pi 的策略是**从后往前累积**（[findCutPoint L392-454](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/compaction/compaction.ts#L392)）：
+
+```
+从最新消息往回走，累积 token 数。
+当累积量 >= keepRecentTokens（20,000）时，停止。
+在停止位置之后找最近的有效切割点——那里就是切刀。
+```
+
+为什么从后往前？因为**最近的上下文最重要**。模型需要知道"刚才做了什么""刚才读了什么文件""用户最新说了什么"。往回走直到累积够 20,000 token，确保保留足够的近期上下文。
+
+```python
+# ============================================================
+# 【Python 改写】findCutPoint 核心逻辑（伪代码）
+# 原文 TS:
+#   function findCutPoint(entries, keepRecentTokens) {
+#       const cutPoints = findValidCutPoints(entries);
+#       let accumulated = 0;
+#       for (let i = entries.length - 1; i >= 0; i--) {
+#           accumulated += estimateTokens(entries[i]);
+#           if (accumulated >= keepRecentTokens) {
+#               return 第一个 >= i 的 cutPoint;
+#           }
+#       }
+#       return 最早的 cutPoint;
+#   }
+# ============================================================
+
+# 概念对照：TS 的 for(i=len-1; i>=0; i--) → Python 的 for i in range(len-1, -1, -1)
+# 注意 Python 没有 TS 的 `第一个 >= i 的 cutPoint` 这种语法糖，需要手动查找
+
+def find_cut_point(entries: list, keep_recent_tokens: int):
+    cut_points = find_valid_cut_points(entries)   # 排除 toolResult
+
+    accumulated = 0
+    for i in range(len(entries) - 1, -1, -1):
+        accumulated += estimate_tokens(entries[i])
+        if accumulated >= keep_recent_tokens:
+            # 找到第一个 >= i 的有效切割点
+            return next((cp for cp in cut_points if cp >= i), None)
+    return cut_points[0] if cut_points else None   # 全部需要压缩 → 返回最早的有效切点
+```
+
+切割结果把消息分成两组：
+
+```
+切割点之前的消息 → messagesToSummarize（被压缩）
+切割点之后的消息 → kept（保留）
+```
+
+---
+
+## 四、切掉的部分怎么处理：结构化摘要
+
+被压缩的那几十轮对话，不是直接扔掉，而是变成一段**结构化摘要**。
+
+### 摘要的格式：不是自由文本，是填表
+
+Pi 不是让 LLM "随便写一段总结"，而是要求它填一个固定格式的表格——6 个 section：
+
+```
+## Goal                    ← 用户最初要做什么
+## Constraints & Preferences  ← 有什么约束
+## Progress                ← 做了什么（Done / In Progress / Blocked）
+## Key Decisions           ← 关键决策
+## Next Steps              ← 下一步做什么
+## Critical Context        ← 不能忘记的关键信息
+```
+
+为什么用结构化格式？因为自由文本容易遗漏信息——LLM 可能花大篇幅描述某个有趣的技术细节，却忘了记录用户的核心需求。固定 section 强制 LLM 覆盖每个维度，减少遗漏。
+
+### 摘要生成：一次 LLM 调用
+
+生成摘要的过程是：先把消息序列化成文本，然后调用 LLM 生成摘要。
+
+```
+原始消息（AgentMessage[]）
+    │
+    ▼ 序列化
+"[User]: 帮我修 auth.ts
+ [Assistant tool calls]: read(path=\"auth.ts\")
+ [Tool result]: export function authenticate() {...}
+ [Assistant]: 找到问题了，缺少 salt..."
+    │
+    ▼ LLM 调用（用摘要 prompt）
+    │
+结构化摘要
+    ## Goal
+    Fix authentication bug in auth.ts
+    ## Progress
+    ### Done
+    - [x] Read auth.ts, identified missing salt
+    ...
+```
+
+### 增量更新：不是每次从零开始
+
+如果一个长对话被压缩了多次（第一次压缩第 1-30 轮，第二次压缩第 31-50 轮），第二次压缩时会传入上一次的摘要作为 `previousSummary`：
+
+```
+第一次压缩：
+  输入：第1-30轮原始消息
+  输出：摘要 A
+
+第二次压缩：
+  输入：摘要 A + 第31-50轮原始消息
+  输出：摘要 B（在 A 的基础上合并新信息）
+```
+
+这让 LLM 做的是**更新而非重写**——已有的 Goal/Constraints 保留，新增的 Progress 追加。比每次从零开始写摘要更稳定。
+
+### 文件跟踪：压缩不只是摘要文字
+
+对于编码 Agent 来说，"改了哪些文件"是至关重要的信息。Pi 的摘要里还维护一个文件跟踪列表：
+
+```
+<read-files>
+src/auth.ts
+src/utils/hash.ts
+</read-files>
+
+<modified-files>
+src/auth.ts
+</modified-files>
+```
+
+这些列表跨压缩累积——第二次压缩时，`previousSummary` 里的文件列表会被合并进新的摘要。这样即使经过了多轮压缩，Agent 仍然知道整个会话过程中读过哪些文件、改过哪些文件。
+
+---
+
+## 五、极端情况：Turn 分割
+
+§三 讲了 user 切点和 assistant 切点都合法。但两者性质不同——
+
+- **user 切点**：天然保证 Turn 完整（user 后面的 assistant + toolResult 跟着进保留区）
+- **assistant 切点**：**会切断 Turn**——这个 assistant 对应的 user 在压缩区，自己却在保留区
+
+源码 [findCutPoint L444-453](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/compaction/compaction.ts#L444) 的判断逻辑：
+
+```python
+# ============================================================
+# 【Python 改写】split turn 判断逻辑
+# 原文 TS:
+#   const isUserMessage = cutEntry.message.role === "user";
+#   const turnStartIndex = isUserMessage ? -1 : findTurnStartIndex(entries, cutIndex, startIndex);
+#   isSplitTurn: !isUserMessage && turnStartIndex !== -1,
+# ============================================================
+
+# 概念对照：TS 的三元 `cond ? a : b` → Python 的 `a if cond else b`；
+# TS 的 `!==` → Python 的 `!=`
+
+is_user_message = (cut_entry.message.role == "user")
+turn_start_index = -1 if is_user_message else find_turn_start_index(entries, cut_index, start_index)
+is_split_turn = (not is_user_message) and (turn_start_index != -1)
+```
+
+**切点是 user → 一定不是 split turn**。**切点是 assistant（或 bashExecution/custom 等）→ 可能是 split turn**——向前找到这个 Turn 的 user 起点，把 user 起点到切点之间的消息（assistant + toolResult 序列）单独处理。
+
+### 为什么允许 assistant 切点？
+
+最直觉的疑问是：既然 assistant 切点会切断 Turn，为什么不允许只切 user？这样不就完全避免 split turn 了吗？
+
+答案藏在 token 控制的精度上。看这个场景：
+
+```
+entry:  1     2      3      4      5     6      7     8
+       usr   ass   tool   ass   tool   ass   tool   ass
+                                          ↑
+                                    向后累积到这里 token 预算用完
+```
+
+假设向后累积到 entry 6 时累积量刚好达到 `keepRecentTokens`（20K）。这时要找一个"在 6 之后或等于 6"的合法切点：
+
+- 如果**只允许 user 切点**：最近的 user 是 entry 1——意味着保留区从 entry 1 开始，要保留 entry 1-8 共 8 个 entry。但 token 预算可能只够保留 2-3 个 entry。**压缩失败**——根本压不动。
+- 如果**允许 assistant 切点**：选 entry 6 作为切点，保留区只有 entry 6-8 共 3 个 entry，**精确控制 token 量**。
+
+这是个**权衡**：
+- 只允许 user 切点 → 保留区永远过大，压缩效率低甚至失败
+- 允许 assistant 切点 → 精确控制 token，但切断 Turn → 用 turnPrefix 机制弥补
+
+Pi 选择了后者——**优先保证压缩能生效**，然后用 turnPrefix 摘要弥补 Turn 完整性的损失。
+
+### turnPrefix 机制：被切断的 Turn 怎么办？
+
+```
+entry:  1     2      3      4      5      6       7      8     9
+       ┌─────┬──────┬──────┬──────┬──────┬───────┬──────┬─────┬──────┐
+       │ usr │ ass  │ tool │ ass  │ tool │ tool  │ ass  │tool │ ass │
+       └─────┴──────┴──────┴──────┴──────┴───────┴──────┴─────┴──────┘
+         ↑     └────────── turnPrefixMessages ──────────┘  └─ kept ─┘
+       turnStart=1            (entries 2-6)              entries 7-9
+
+       切点在 entry 7（assistant），但 entry 1（user）是它的 Turn 起点
+       → entry 1 在主摘要里压缩
+       → entry 2-6 是"被切断的 Turn 前缀"，单独生成 turnPrefix 摘要
+```
+
+源码里 Pi 把这部分叫做 **turnPrefixMessages**（[compaction.ts:698-705](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/compaction/compaction.ts#L698)）——用专门的 [`TURN_PREFIX_SUMMARIZATION_PROMPT`](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/compaction/compaction.ts#L737) 单独生成一份前缀摘要，和主摘要**并行生成**（[L784-813](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/compaction/compaction.ts#L784) 用 `Promise.all`），最后合并成一个摘要文本。
+
+> **Python 对照**：TS 的 `Promise.all([p1, p2])` 在 Python 里对应 `asyncio.gather(c1, c2)`——多个协程并发执行，等所有完成。
+
+注意主摘要和 turnPrefix 摘要的分工不同：
+- **主摘要**覆盖的是被压缩的"完整历史"（多个完整 Turn）→ 用 6 section 结构化格式
+- **turnPrefix 摘要**覆盖的是被切断的"半个 Turn"（user 在主摘要里、assistant 在保留区）→ 用更轻量的 3 段格式（Original Request / Early Progress / Context for Suffix）
+
+两份摘要合并后存储在同一个 CompactionEntry 里，下一轮 buildSessionContext 时一起注入。LLM 看到的是一份完整的"压缩前发生了什么 + 半个 Turn 的前缀"。
+
+---
+
+## 六、压缩结果如何生效
+
+§一末尾已经讲了核心时序——压缩在两轮之间发生。这一节展开"压缩结果如何影响下一次运行"。
+
+压缩完成后，结果怎么影响后续的 Agent 运行？
+
+### CompactionEntry：压缩结果的物理形态
+
+每次压缩产生一个 `CompactionEntry`，它存储在 Session Tree 上（第 10 章详讲）：
+
+```python
+# ============================================================
+# 【Python 改写】CompactionEntry 结构
+# 原文 TS（compaction.ts:103-110 的 CompactionResult 接口；
+#          utils.ts:62-72 的 formatFileOperations 产出 details 结构）:
+#   {
+#       type: "compaction",
+#       summary: "## Goal\nFix auth.ts...\n## Progress\n...",
+#       tokensBefore: 185000,
+#       firstKeptEntryId: "e30",
+#       details: {
+#           readFiles: ["src/auth.ts", "src/utils/hash.ts"],
+#           modifiedFiles: ["src/auth.ts"],
+#       },
+#       // ... 含 id/parentId/timestamp 等 SessionEntryBase 字段
+#   }
+# ============================================================
+
+{
+    "type": "compaction",
+    "summary": "## Goal\nFix auth.ts...\n## Progress\n...",   # 摘要文本
+    "tokens_before": 185000,             # 压缩前 token 数（用于诊断和审计）
+    "first_kept_entry_id": "e30",        # 保留的起始 entry id（重建上下文时从这开始）
+    "details": {                         # 文件操作跟踪（来自 extractFileOperations）
+        "read_files":     ["src/auth.ts", "src/utils/hash.ts"],
+        "modified_files": ["src/auth.ts"],
+    },
+    # ... 含 id / parent_id / timestamp 等 SessionEntryBase 字段
+}
+```
+
+### 上下文重建
+
+下次 Agent 运行时，`buildSessionContext()` 会根据 CompactionEntry 重建上下文：
+
+```
+重建后的上下文：
+├── CompactionSummaryMessage（role: "compactionSummary"）
+│     content = 摘要文本
+│     （第6章讲过：convertToLlm 把它翻译成 UserMessage）
+│
+├── 保留的原始消息（entry 30 之后的消息）
+│     ├── UserMessage: "继续修复"
+│     ├── AssistantMessage: ...
+│     └── ...
+│
+└── （新的消息会在运行中追加）
+```
+
+回忆第 6 章的消息系统：`CompactionSummaryMessage` 是 coding-agent 的自定义消息类型，`convertToLlm` 会把它翻译成 `<summary>` 标签包裹的 UserMessage。LLM 看到的是："The conversation history before this point was compacted into the following summary: ..."
+
+**对 LLM 来说，之前的几十轮对话变成了一个摘要。** 它不知道原始消息的细节，但它知道目标、进度、决策和文件操作记录——这对继续工作来说通常够用了。
+
+### 自动压缩的集成
+
+自动压缩嵌入在 AgentSession 的 `agent_end` 事件处理中（第 7 章讲过事件系统）：
+
+```
+Agent 运行结束（agent_end 事件）
+    │
+    ▼
+检查 shouldCompact()？
+    │
+    ├── 不需要 → 结束
+    │
+    └── 需要 → 执行压缩
+         ├── findCutPoint → 找切割点
+         ├── 序列化 + LLM 调用 → 生成摘要
+         ├── 追加 CompactionEntry 到 Session Tree
+         └── 下次运行时 buildSessionContext 使用压缩后的上下文
+```
+
+### 两套事件
+
+压缩过程会发出两种事件（第 7 章讲过的 Session 层扩展事件）：
+
+- `compaction_start`（reason: "manual" | "threshold" | "overflow"）
+- `compaction_end`（携带压缩结果或错误信息）
+
+UI 可以订阅这些事件来显示"正在压缩上下文..."的进度提示。
+
+---
+
+## 七、完整链路回顾
+
+把全章串起来，一次压缩的完整旅程：
+
+<Diagram file="/assets/260702-ch09-compaction-flow.svg" caption="压缩的完整链路" id="260702-ch09-compaction-flow" />
+
+**配图说明**：6 步横向流程——触发判断→找切割点→分割→生成摘要（红色焦点）→存 CompactionEntry→下次运行时重建 context。Step 5 和 Step 6 之间是跨运行的虚线箭头，强调 CompactionEntry 是连接两次运行的桥梁。
+
+```
+① 触发判断
+   shouldCompact() → contextTokens(185K) > contextWindow(200K) - reserve(16K)
+   红灯亮起，开始压缩
+
+② 找切割点
+   向后遍历 → 累积 token 到 keepRecent(20K) → 找最近的有效切割点
+   排除 ToolResult 后的位置 → 保证消息对完整
+
+③ 分割消息
+   切割点之前 → messagesToSummarize（被压缩）
+   切割点之后 → kept（保留）
+
+④ 生成摘要
+   序列化消息为文本 → 调 LLM 填写 6 section 结构化摘要
+   传入 previousSummary 做增量更新 → 合并文件跟踪列表
+
+⑤ 存储结果
+   CompactionEntry 追加到 Session Tree
+
+⑥ 下次运行时
+   buildSessionContext() → 用 CompactionSummaryMessage 替换旧消息
+   convertToLlm → 摘要翻译成 UserMessage 发给 LLM
+```
+
+---
+
+## 八、设计精华
+
+回顾整章，Pi 的压缩算法有三个值得带走的设计思路。每个都不是"为了巧而巧"，而是为了回应一个具体的工程张力。
+
+### 1. 向后遍历 + 合法切点：保护最重要的东西
+
+`findCutPoint` 不是"找哪里能切"，而是"找哪里值得保留"——**从最新消息往回走**，直到累积够 `keepRecentTokens`（默认 20K）。这种"逆向"思路背后的判断是：**最近的上下文最重要**——模型需要"刚才读了什么""用户最新说了什么"，比"10 轮前讨论了什么"关键得多。
+
+切点排除 `toolResult` 是因为协议约束——toolResult 必须紧跟 toolCall，否则模型会"调了工具但找不到结果"。这是个不可妥协的硬约束。
+
+> 实现：`packages/coding-agent/src/core/compaction/compaction.ts` 的 `findCutPoint`（约 L392）
+
+### 2. 结构化摘要：用固定模板对抗 LLM 的"自由发挥"
+
+`SUMMARIZATION_PROMPT` 强制 LLM 填 6 个固定 section：Goal / Constraints & Preferences / Progress（含三个子项：Done / In Progress / **Blocked**）/ Key Decisions / Next Steps / Critical Context。其中 Progress 的 Blocked 子项专门记录"卡住的事"——LLM 在新一轮里看到这条，可以优先尝试解锁。
+
+为什么不写"请总结对话"？因为自由文本摘要有一个失败模式：LLM 容易被"有趣的内容"吸引，花大篇幅描述某个技术细节，**忘了记录用户的核心需求**。固定 section 强制 LLM 在每个维度上至少扫一遍，把"易遗漏"变成"必须填"。
+
+加上增量更新（`UPDATE_SUMMARIZATION_PROMPT`）——多次压缩时新摘要是在旧摘要基础上更新，不是从零重写。这避免了"每次压缩摘要漂移一点"的累积误差。
+
+**这是用 prompt 设计对抗 LLM 认知偏差的范例**——固定模板 + 增量更新 = 让 LLM 一次性"想起"和"组织"信息的能力受到结构约束。
+
+> 实现：`packages/coding-agent/src/core/compaction/compaction.ts` 的 `SUMMARIZATION_PROMPT`（约 L460）与 `UPDATE_SUMMARIZATION_PROMPT`（约 L493）
+
+### 3. 文件跟踪累积：编码 Agent 的领域特定知识
+
+`extractFileOperations` 从两个来源累积文件列表：
+1. 上一次压缩的 `details.readFiles` / `modifiedFiles`
+2. 这次被压缩的消息里所有工具调用涉及的文件（read 工具 → readFiles，edit/write 工具 → modifiedFiles）
+
+最终用 `formatFileOperations` 把这两个列表以 `<read-files>...</read-files>` 和 `<modified-files>...</modified-files>` 标签附加到摘要末尾。
+
+为什么单独跟踪文件？因为对编码 Agent 来说，"**改过哪些文件**"是至关重要的元信息——比"对话里讨论过什么"更精确、更可验证。LLM 看到这个列表，知道哪些文件已经被项目触碰过，避免重复读、避免覆盖他人改动。这是一种"领域知识嵌入到通用机制"的做法——压缩算法本身是通用的，但通过 `details` 字段承载领域特定信息。
+
+> 实现：`packages/coding-agent/src/core/compaction/compaction.ts` 的 `extractFileOperations`（约 L41）；标签格式化在 `utils.ts` 的 `formatFileOperations`
+
+---
+
+## 九、下一站
+
+这一章我们看到了压缩算法怎么工作——从触发判断到切割点计算到摘要生成。但有一个概念我们反复提到却没展开：**Session Tree**。压缩结果（CompactionEntry）存在 Session Tree 上，`buildSessionContext()` 从 Session Tree 构建 LLM 需要的上下文。
+
+Session Tree 是什么？为什么对话历史不是线性数组而是一棵树？分支是怎么回事？
+
+下一章——会话管理——回答这些问题。
+
+---
+
+> **本章关键源码索引**：
+> - `packages/coding-agent/src/core/compaction/compaction.ts` — 核心算法（findCutPoint、prepareCompaction、shouldCompact）
+> - `packages/coding-agent/src/core/compaction/compaction.ts:256-296` — `estimateTokens`（chars/4 启发式估算）
+> - `packages/coding-agent/src/core/compaction/utils.ts` — 其他工具函数（消息序列化等）
+> - `packages/coding-agent/src/core/session-manager.ts` — CompactionEntry 定义 + buildSessionContext
+> - `packages/coding-agent/src/core/messages.ts` — CompactionSummaryMessage
+> - `packages/coding-agent/src/core/agent-session.ts` — 自动压缩集成（agent_end 后触发）

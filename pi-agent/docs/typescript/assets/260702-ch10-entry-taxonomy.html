@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>9 种 Entry 类型的分类树</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --paper: #faf7f2; --ink: #1c1917; --muted: #57534e; --soft: #a8a29e;
+    --rule: rgba(28,25,23,0.10); --accent: #b5523a; --green: #2d6e3c; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink);
+    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    padding: 3rem 1.5rem 2rem; line-height: 1.5; }
+  .container { max-width: 1080px; margin: 0 auto; }
+  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  h1 { font-family: 'Instrument Serif', 'Source Han Serif SC', serif; font-weight: 400;
+    font-size: 32px; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 2rem; max-width: 64ch; }
+  .frame { background: rgba(28,25,23,0.02); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--soft);
+    letter-spacing: 0.1em; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 10 章 · TAXONOMY TREE</p>
+  <h1>Session Tree 上的 9 种 Entry 类型</h1>
+  <p class="subtitle">Session Tree 的每个节点是一个 Entry。按"是否进 LLM 上下文"分成三组——进上下文（4 种）、影响状态（2 种）、纯元数据（3 种）。这个分类决定了 buildSessionContext 的处理逻辑。</p>
+
+  <div class="frame">
+  <svg viewBox="0 0 960 580" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+    </defs>
+    <rect width="960" height="580" fill="#faf7f2"/>
+
+    <!-- Root: SessionEntry -->
+    <rect x="380" y="40" width="200" height="56" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.4"/>
+    <rect x="396" y="52" width="76" height="14" rx="2" fill="rgba(181,82,58,0.10)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
+    <text x="434" y="63" fill="#b5523a" font-size="7" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">BASE TYPE</text>
+    <text x="480" y="86" fill="#1c1917" font-size="13" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">SessionEntry</text>
+
+    <!-- Lines down -->
+    <line x1="480" y1="96" x2="480" y2="124" stroke="#57534e" stroke-width="1"/>
+    <line x1="180" y1="124" x2="780" y2="124" stroke="#57534e" stroke-width="1"/>
+    <line x1="180" y1="124" x2="180" y2="148" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+    <line x1="480" y1="124" x2="480" y2="148" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+    <line x1="780" y1="124" x2="780" y2="148" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- ===== Group 1: 进 LLM 上下文 ===== -->
+    <rect x="40" y="152" width="280" height="56" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+    <text x="60" y="174" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist', sans-serif">① 进 LLM 上下文（4 种）</text>
+    <text x="60" y="194" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">buildSessionContext 时 push 到 messages 数组</text>
+
+    <!-- 4 children -->
+    <g>
+      <rect x="40" y="224" width="132" height="48" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+      <text x="106" y="244" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">MessageEntry</text>
+      <text x="106" y="262" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">3 种标准消息</text>
+    </g>
+    <g>
+      <rect x="188" y="224" width="132" height="48" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+      <text x="254" y="244" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">CustomMessage</text>
+      <text x="254" y="262" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">BashExecution 等</text>
+    </g>
+    <g>
+      <rect x="40" y="288" width="132" height="48" rx="4" fill="rgba(181,82,58,0.06)" stroke="rgba(181,82,58,0.50)" stroke-width="1"/>
+      <text x="106" y="308" fill="#b5523a" font-size="10" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">CompactionEntry</text>
+      <text x="106" y="326" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">压缩节点 ★</text>
+    </g>
+    <g>
+      <rect x="188" y="288" width="132" height="48" rx="4" fill="rgba(181,82,58,0.06)" stroke="rgba(181,82,58,0.50)" stroke-width="1"/>
+      <text x="254" y="308" fill="#b5523a" font-size="10" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">BranchSummary</text>
+      <text x="254" y="326" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">被弃分支遗言</text>
+    </g>
+
+    <!-- ===== Group 2: 影响状态 ===== -->
+    <rect x="340" y="152" width="280" height="56" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+    <text x="360" y="174" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif">② 影响状态（2 种）</text>
+    <text x="360" y="194" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">不进 messages，但改 context 的状态变量</text>
+
+    <g>
+      <rect x="340" y="224" width="132" height="48" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+      <text x="406" y="244" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">ThinkingLevel</text>
+      <text x="406" y="262" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">改思考强度</text>
+    </g>
+    <g>
+      <rect x="488" y="224" width="132" height="48" rx="4" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+      <text x="554" y="244" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">ModelChange</text>
+      <text x="554" y="262" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">切换模型</text>
+    </g>
+
+    <!-- ===== Group 3: 纯元数据 ===== -->
+    <rect x="640" y="152" width="280" height="56" rx="6" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.20)" stroke-width="1"/>
+    <text x="660" y="174" fill="#57534e" font-size="11" font-weight="600" font-family="'Geist', sans-serif">③ 纯元数据（3 种）</text>
+    <text x="660" y="194" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif">不进上下文、不改状态，只记属性</text>
+
+    <g>
+      <rect x="640" y="224" width="84" height="48" rx="4" fill="rgba(28,25,23,0.02)" stroke="rgba(28,25,23,0.20)" stroke-width="0.8" stroke-dasharray="3,2"/>
+      <text x="682" y="244" fill="#57534e" font-size="10" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">Label</text>
+      <text x="682" y="262" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">分支标签</text>
+    </g>
+    <g>
+      <rect x="738" y="224" width="84" height="48" rx="4" fill="rgba(28,25,23,0.02)" stroke="rgba(28,25,23,0.20)" stroke-width="0.8" stroke-dasharray="3,2"/>
+      <text x="780" y="244" fill="#57534e" font-size="10" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">SessionInfo</text>
+      <text x="780" y="262" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">会话信息</text>
+    </g>
+    <g>
+      <rect x="836" y="224" width="84" height="48" rx="4" fill="rgba(28,25,23,0.02)" stroke="rgba(28,25,23,0.20)" stroke-width="0.8" stroke-dasharray="3,2"/>
+      <text x="878" y="244" fill="#57534e" font-size="10" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">Custom</text>
+      <text x="878" y="262" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">扩展自定义</text>
+    </g>
+
+    <!-- Bottom: how buildSessionContext processes each -->
+    <line x1="40" y1="376" x2="920" y2="376" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+    <text x="40" y="400" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">BUILDSESSIONCONTEXT PROCESSING</text>
+
+    <g transform="translate(40, 416)">
+      <rect x="0" y="0" width="14" height="14" rx="2" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+      <text x="22" y="12" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">① → 推入 messages 数组（或替换旧消息）</text>
+    </g>
+
+    <g transform="translate(40, 442)">
+      <rect x="0" y="0" width="14" height="14" rx="2" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <text x="22" y="12" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">② → 更新 context 的状态变量（model、thinkingLevel）</text>
+    </g>
+
+    <g transform="translate(40, 468)">
+      <rect x="0" y="0" width="14" height="14" rx="2" fill="rgba(28,25,23,0.02)" stroke="rgba(28,25,23,0.20)" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="22" y="12" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">③ → 跳过（仅供 UI/导出/检索用）</text>
+    </g>
+
+    <text x="40" y="520" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" font-style="italic">
+      关键设计：所有 Entry 都共享基础字段（type、id、parentId、timestamp），通过 type 字段区分子类。
+    </text>
+    <text x="40" y="540" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" font-style="italic">
+      append-only 的铁律意味着每个 Entry 永不修改、永不删除——这是会话可回退/分叉的根基。
+    </text>
+  </svg>
+  </div>
+
+  <div class="footer">
+    <span>PI-AGENT · 项目原理二次整理版</span>
+    <span>260702 · CH10 · TAXONOMY TREE</span>
+  </div>
+</div>
+</body>
+</html>

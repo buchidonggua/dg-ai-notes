@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Agent Loop 内核与叠加设计</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #faf7f2;
+    --ink: #1c1917;
+    --muted: #57534e;
+    --soft: #a8a29e;
+    --rule: rgba(28,25,23,0.10);
+    --accent: #b5523a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    padding: 3rem 1.5rem 2rem;
+    line-height: 1.5;
+  }
+  .container { max-width: 1080px; margin: 0 auto; }
+  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  h1 { font-family: 'Instrument Serif', 'Source Han Serif SC', serif; font-weight: 400;
+    font-size: 32px; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 2rem; max-width: 62ch; }
+  .frame { background: rgba(28,25,23,0.02); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--soft);
+    letter-spacing: 0.1em; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 3 章 · NESTED LAYERS</p>
+  <h1>Agent Loop：内核与叠加</h1>
+  <p class="subtitle">最简 Loop 只要十几行就能跑——这是所有 Agent 的通用法则。Pi 的 coding-agent 在内核之上叠加了 steering、followUp、prepareNextTurn/shouldStopAfterTurn 等产品功能。做自己的 Agent 时先搭内核，再按场景加叠加。</p>
+
+  <div class="frame">
+  <svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+    </defs>
+
+    <rect width="960" height="600" fill="#faf7f2"/>
+
+    <!-- Layer 4: outermost - 钩子 -->
+    <rect x="40" y="40" width="640" height="520" rx="12"
+          fill="rgba(28,25,23,0.02)" stroke="rgba(28,25,23,0.20)" stroke-width="1"/>
+    <text x="60" y="68" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">+ 钩子（产品功能）</text>
+
+    <!-- Layer 3: followUp -->
+    <rect x="100" y="100" width="520" height="400" rx="10"
+          fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.25)" stroke-width="1"/>
+    <text x="120" y="128" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">+ followUp（任务追加）</text>
+
+    <!-- Layer 2: steering -->
+    <rect x="160" y="160" width="400" height="280" rx="8"
+          fill="rgba(28,25,23,0.04)" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+    <text x="180" y="188" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">+ steering（紧急插队）</text>
+
+    <!-- Layer 1: kernel (innermost) - focal accent -->
+    <rect x="220" y="220" width="280" height="160" rx="6"
+          fill="rgba(181,82,58,0.08)" stroke="#b5523a" stroke-width="1.4"/>
+    <rect x="232" y="232" width="56" height="14" rx="2" fill="rgba(181,82,58,0.10)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
+    <text x="260" y="243" fill="#b5523a" font-size="7" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">KERNEL</text>
+
+    <text x="360" y="276" fill="#1c1917" font-size="14" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">最简 Loop（~10 行）</text>
+    <text x="360" y="298" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace"
+          text-anchor="middle">while (hasMoreToolCalls)</text>
+    <text x="360" y="316" fill="#57534e" font-size="9" font-family="'Geist', sans-serif"
+          text-anchor="middle">调模型 → 检查 stopReason</text>
+    <text x="360" y="332" fill="#57534e" font-size="9" font-family="'Geist', sans-serif"
+          text-anchor="middle">→ 执行工具 → 再调模型</text>
+    <text x="360" y="364" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif"
+          text-anchor="middle" font-style="italic">所有 Agent 都需要的内核</text>
+
+    <!-- Right side: explanations -->
+    <line x1="700" y1="100" x2="700" y2="500" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+
+    <!-- 4 explanation blocks on the right -->
+    <g transform="translate(720, 100)">
+      <rect x="0" y="0" width="14" height="14" rx="2" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1"/>
+      <text x="22" y="12" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif">内核</text>
+      <text x="0" y="32" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">最简 Loop：调模型 +</text>
+      <text x="0" y="46" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">执行工具 + stopReason</text>
+      <text x="0" y="62" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">通用法则，所有 Agent 都需要</text>
+    </g>
+
+    <g transform="translate(720, 200)">
+      <rect x="0" y="0" width="14" height="14" rx="2" fill="rgba(28,25,23,0.04)" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
+      <text x="22" y="12" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif">+ steering</text>
+      <text x="0" y="32" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">紧急消息插队，</text>
+      <text x="0" y="46" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">用户在工作中补充指令</text>
+      <text x="0" y="62" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">交互式产品的真实需求</text>
+    </g>
+
+    <g transform="translate(720, 300)">
+      <rect x="0" y="0" width="14" height="14" rx="2" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.25)" stroke-width="1"/>
+      <text x="22" y="12" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif">+ followUp</text>
+      <text x="0" y="32" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">任务追加续命，</text>
+      <text x="0" y="46" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">Agent 完成后顺势追加</text>
+      <text x="0" y="62" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">同一个 Trace 内继续跑</text>
+    </g>
+
+    <g transform="translate(720, 400)">
+      <rect x="0" y="0" width="14" height="14" rx="2" fill="rgba(28,25,23,0.02)" stroke="rgba(28,25,23,0.20)" stroke-width="1"/>
+      <text x="22" y="12" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif">+ 钩子</text>
+      <text x="0" y="32" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">prepareNextTurn（切模型）</text>
+      <text x="0" y="46" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">shouldStopAfterTurn（安全阀）</text>
+      <text x="0" y="62" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">外部扩展点，按需注入</text>
+    </g>
+
+    <!-- Bottom insight -->
+    <line x1="40" y1="568" x2="920" y2="568" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+    <text x="40" y="586" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">INSIGHT</text>
+    <text x="120" y="586" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" font-style="italic">
+      剥掉所有叠加层，最简 Loop 仍能正常工作。这是判断"内核是否被污染"的试金石。</text>
+  </svg>
+  </div>
+
+  <div class="footer">
+    <span>PI-AGENT · 项目原理二次整理版</span>
+    <span>260702 · CH03 · NESTED LAYERS</span>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,98 @@
+---
+// src/components/TopBar.astro
+import ThemeToggle from './ThemeToggle.astro';
+import type { ModuleEntry } from '../utils/collection';
+
+interface Props { entry?: ModuleEntry; }
+const { entry } = Astro.props;
+const title = entry
+  ? `${entry.data.module} / ${entry.data.title}${entry.data.variant === 'python' ? ' · Python' : ''}`
+  : 'Pi Agent Book';
+---
+
+<header class="topbar">
+  <button class="hamburger" aria-label="打开目录" aria-expanded="false">☰</button>
+  <a href="/" class="brand">Pi Agent <span class="brand-accent">·</span> Book</a>
+  <nav class="crumb" aria-label="breadcrumb">{title}</nav>
+  <div class="actions">
+    <ThemeToggle />
+  </div>
+</header>
+
+<script>
+  // Hamburger toggle: open/close the left TOC drawer on mobile.
+  const ham = document.querySelector('.hamburger');
+  ham?.addEventListener('click', () => {
+    document.body.classList.toggle('toc-open');
+    ham.setAttribute('aria-expanded', String(document.body.classList.contains('toc-open')));
+  });
+  // Close drawer when clicking outside (on the main content area).
+  document.addEventListener('click', (e) => {
+    if (!document.body.classList.contains('toc-open')) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('.hamburger') || target.closest('.toc-left')) return;
+    document.body.classList.remove('toc-open');
+    ham?.setAttribute('aria-expanded', 'false');
+  });
+</script>
+
+<style>
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: var(--topbar-h);
+    padding: 0 var(--space-6);
+    background: var(--topbar-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: var(--border-w) solid var(--rule);
+  }
+  :root[data-theme="dark"] .topbar {
+    background: var(--topbar-bg);
+  }
+
+  .brand {
+    font-family: var(--font-display);
+    font-size: 22px;
+    color: var(--ink-strong);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .brand:hover { text-decoration: none; }
+  .brand-accent { color: var(--accent); }
+
+  .crumb {
+    font-family: var(--font-mono);
+    font-size: var(--fs-small);
+    color: var(--soft);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .actions {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+  }
+
+  .hamburger { display: none; }
+
+  @media (max-width: 767px) {
+    .hamburger {
+      display: block;
+      background: none;
+      border: none;
+      font-size: var(--fs-h2);
+      color: var(--ink);
+      cursor: pointer;
+      padding: 0;
+      margin-right: var(--space-3);
+      line-height: 1;
+    }
+  }
+</style>

@@ -1,0 +1,62 @@
+---
+// src/components/chapter/ChapterFooter.astro
+// Renders keyPoints + furtherReading + simulator slot from frontmatter.
+import SimulatorSlot from './SimulatorSlot.astro';
+interface Props { entry: any; }
+const { entry } = Astro.props;
+const { keyPoints, furtherReading, simulator } = entry.data;
+---
+
+{(keyPoints && keyPoints.length > 0) && (
+  <section class="chapter-section keypoints">
+    <h2>本章要点</h2>
+    <ul>
+      {keyPoints.map((k: string) => <li>{k}</li>)}
+    </ul>
+  </section>
+)}
+
+{(furtherReading && furtherReading.length > 0) && (
+  <section class="chapter-section further-reading">
+    <h2>扩展阅读</h2>
+    <ul>
+      {furtherReading.map((f: any) => (
+        <li>
+          {f.url
+            ? <a href={f.url} target="_blank" rel="noopener">{f.label} ↗</a>
+            : f.module
+              ? <a href={`/modules/${f.module}`}>{f.label}</a>
+              : <span>{f.label}</span>}
+        </li>
+      ))}
+    </ul>
+  </section>
+)}
+
+{simulator && <SimulatorSlot preset={simulator.preset} />}
+
+<style>
+  .chapter-section {
+    margin-top: var(--space-16);
+    padding: var(--space-8);
+    border: var(--border-w) solid var(--rule);
+    border-radius: var(--radius-md);
+    background: var(--paper-raised);
+  }
+  .keypoints {
+    border-left: var(--hl-outline-w) solid var(--accent);
+  }
+  .chapter-section h2 {
+    font-size: 20px;
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    border: none;
+  }
+  .chapter-section ul {
+    margin: 0;
+    padding-left: var(--space-6);
+  }
+  .chapter-section li {
+    margin-bottom: var(--space-2);
+  }
+</style>

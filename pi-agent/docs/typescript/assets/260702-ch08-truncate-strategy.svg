@@ -1,0 +1,141 @@
+  <svg viewBox="0 0 1080 620" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+      <marker id="arrow-green" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#2d6e3c"/>
+      </marker>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+    </defs>
+
+    <rect width="1080" height="620" fill="#faf7f2"/>
+
+    <!-- ===== Top: Dual limits ===== -->
+    <g>
+      <text x="40" y="36" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace" letter-spacing="0.14em">DUAL LIMITS · 先触者胜</text>
+
+      <g transform="translate(40, 52)">
+        <rect x="0" y="0" width="480" height="72" rx="6" fill="rgba(28,25,23,0.04)" stroke="rgba(28,25,23,0.20)" stroke-width="1"/>
+        <text x="20" y="26" fill="#1c1917" font-size="13" font-weight="600" font-family="'Geist', sans-serif">行数上限</text>
+        <text x="120" y="26" fill="#b5523a" font-size="13" font-family="'Geist Mono', monospace">DEFAULT_MAX_LINES = 2000</text>
+        <text x="20" y="50" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">管「展示可读性」——防止行数过多</text>
+      </g>
+
+      <g transform="translate(560, 52)">
+        <rect x="0" y="0" width="480" height="72" rx="6" fill="rgba(28,25,23,0.04)" stroke="rgba(28,25,23,0.20)" stroke-width="1"/>
+        <text x="20" y="26" fill="#1c1917" font-size="13" font-weight="600" font-family="'Geist', sans-serif">字节上限</text>
+        <text x="120" y="26" fill="#b5523a" font-size="13" font-family="'Geist Mono', monospace">DEFAULT_MAX_BYTES = 50KB</text>
+        <text x="20" y="50" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">管「硬性体积」——防 minified 单行爆炸</text>
+      </g>
+
+      <text x="540" y="146" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" font-style="italic" text-anchor="middle">
+        两者并行检查，任一触发就停。+ UTF-8 多字节边界安全 + grep 单行 500 字符
+      </text>
+    </g>
+
+    <!-- ===== Middle: Two strategies ===== -->
+    <line x1="40" y1="166" x2="1040" y2="166" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+
+    <!-- truncateHead -->
+    <g>
+      <rect x="40" y="184" width="480" height="380" rx="8" fill="#ffffff" stroke="#b5523a" stroke-width="1.4"/>
+      <rect x="40" y="184" width="480" height="40" rx="8" fill="rgba(181,82,58,0.06)"/>
+      <text x="60" y="210" fill="#b5523a" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.10em">truncateHead · 用在 read 文件</text>
+      <text x="500" y="210" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="end">保留开头</text>
+
+      <!-- Line stack visualization: head solid, tail dashed -->
+      <g transform="translate(60, 248)">
+        <!-- kept lines (head) -->
+        <rect x="0" y="0" width="400" height="20" rx="2" fill="rgba(45,110,60,0.20)"/>
+        <text x="8" y="14" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace">import { verifySalt } from "./salt";</text>
+
+        <rect x="0" y="24" width="400" height="20" rx="2" fill="rgba(45,110,60,0.20)"/>
+        <text x="8" y="38" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace">import { hash } from "./hash";</text>
+
+        <rect x="0" y="48" width="400" height="20" rx="2" fill="rgba(45,110,60,0.20)"/>
+        <text x="8" y="62" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace">export interface User { ... }</text>
+
+        <rect x="0" y="72" width="400" height="20" rx="2" fill="rgba(45,110,60,0.20)"/>
+        <text x="8" y="86" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace">export function verifySalt(s) {</text>
+
+        <!-- ... cutoff line -->
+        <line x1="0" y1="100" x2="400" y2="100" stroke="#b5523a" stroke-width="1.4" stroke-dasharray="4,3"/>
+        <text x="200" y="114" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">✂ cut point</text>
+
+        <!-- truncated lines (tail) -->
+        <rect x="0" y="124" width="400" height="20" rx="2" fill="rgba(28,25,23,0.04)" stroke="rgba(28,25,23,0.20)" stroke-width="0.8" stroke-dasharray="3,2"/>
+        <text x="8" y="138" fill="#a8a29e" font-size="9" font-family="'Geist Mono', monospace">  ... (1900 行被裁) ...</text>
+
+        <rect x="0" y="148" width="400" height="20" rx="2" fill="rgba(28,25,23,0.04)" stroke="rgba(28,25,23,0.20)" stroke-width="0.8" stroke-dasharray="3,2"/>
+        <text x="8" y="162" fill="#a8a29e" font-size="9" font-family="'Geist Mono', monospace">  return false;</text>
+
+        <rect x="0" y="172" width="400" height="20" rx="2" fill="rgba(28,25,23,0.04)" stroke="rgba(28,25,23,0.20)" stroke-width="0.8" stroke-dasharray="3,2"/>
+        <text x="8" y="186" fill="#a8a29e" font-size="9" font-family="'Geist Mono', monospace">}</text>
+      </g>
+
+      <text x="280" y="496" fill="#57534e" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">
+        文件头部 = import / 类定义 / 接口签名
+      </text>
+      <text x="280" y="514" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" font-style="italic" text-anchor="middle">
+        信息密度最高 —— 留开头
+      </text>
+      <text x="280" y="540" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle">for (let i = 0; ...) → 从前往后</text>
+    </g>
+
+    <!-- truncateTail -->
+    <g>
+      <rect x="560" y="184" width="480" height="380" rx="8" fill="#ffffff" stroke="#b5523a" stroke-width="1.4"/>
+      <rect x="560" y="184" width="480" height="40" rx="8" fill="rgba(181,82,58,0.06)"/>
+      <text x="580" y="210" fill="#b5523a" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.10em">truncateTail · 用在 bash 输出</text>
+      <text x="1020" y="210" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="end">保留末尾</text>
+
+      <!-- Line stack visualization: head dashed, tail solid -->
+      <g transform="translate(580, 248)">
+        <!-- truncated lines (head) -->
+        <rect x="0" y="0" width="400" height="20" rx="2" fill="rgba(28,25,23,0.04)" stroke="rgba(28,25,23,0.20)" stroke-width="0.8" stroke-dasharray="3,2"/>
+        <text x="8" y="14" fill="#a8a29e" font-size="9" font-family="'Geist Mono', monospace">$ npm test</text>
+
+        <rect x="0" y="24" width="400" height="20" rx="2" fill="rgba(28,25,23,0.04)" stroke="rgba(28,25,23,0.20)" stroke-width="0.8" stroke-dasharray="3,2"/>
+        <text x="8" y="38" fill="#a8a29e" font-size="9" font-family="'Geist Mono', monospace">> running 142 tests...</text>
+
+        <rect x="0" y="48" width="400" height="20" rx="2" fill="rgba(28,25,23,0.04)" stroke="rgba(28,25,23,0.20)" stroke-width="0.8" stroke-dasharray="3,2"/>
+        <text x="8" y="62" fill="#a8a29e" font-size="9" font-family="'Geist Mono', monospace">  ✓ test 1</text>
+
+        <rect x="0" y="72" width="400" height="20" rx="2" fill="rgba(28,25,23,0.04)" stroke="rgba(28,25,23,0.20)" stroke-width="0.8" stroke-dasharray="3,2"/>
+        <text x="8" y="86" fill="#a8a29e" font-size="9" font-family="'Geist Mono', monospace">  ... (前面 6000 行被裁)</text>
+
+        <!-- ... cutoff line -->
+        <line x1="0" y1="100" x2="400" y2="100" stroke="#b5523a" stroke-width="1.4" stroke-dasharray="4,3"/>
+        <text x="200" y="114" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">✂ cut point</text>
+
+        <!-- kept lines (tail) -->
+        <rect x="0" y="124" width="400" height="20" rx="2" fill="rgba(45,110,60,0.20)"/>
+        <text x="8" y="138" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace">FAIL test/auth.spec.ts</text>
+
+        <rect x="0" y="148" width="400" height="20" rx="2" fill="rgba(45,110,60,0.20)"/>
+        <text x="8" y="162" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace">  Error: salt encoding at line 23</text>
+
+        <rect x="0" y="172" width="400" height="20" rx="2" fill="rgba(45,110,60,0.20)"/>
+        <text x="8" y="186" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace">  at verifySalt (auth.ts:23)</text>
+      </g>
+
+      <text x="800" y="496" fill="#57534e" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">
+        bash 末尾 = 错误堆栈 / 最终结果
+      </text>
+      <text x="800" y="514" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" font-style="italic" text-anchor="middle">
+        最有信号 —— 留末尾
+      </text>
+      <text x="800" y="540" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle">for (let i = lines.length - 1; ...) → 从后往前</text>
+    </g>
+
+    <!-- ===== Bottom: shared escape hatch ===== -->
+    <g transform="translate(40, 584)">
+      <rect x="0" y="0" width="1000" height="28" rx="4" fill="rgba(45,110,60,0.06)" stroke="rgba(45,110,60,0.40)" stroke-width="0.8"/>
+      <text x="500" y="18" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">
+        共用逃生通道：截断后追加 <tspan font-family="'Geist Mono', monospace" fill="#2d6e3c">[Full output: /tmp/pi-bash-xxx.log]</tspan> —— LLM 需要 read 全文时自己拉
+      </text>
+    </g>
+  </svg>

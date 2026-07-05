@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.astro/
+.env
+.env.local
+.DS_Store
+*.log
+
+# Playwright / 开发过程产物（截图、调试输出）
+.playwright-mcp/
+*.playwright.png
+screenshot-*.png
+
+# PDF 导出产物
+dist-pdf/

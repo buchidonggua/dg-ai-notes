@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>工具调用五步管道</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #faf7f2;
+    --ink: #1c1917;
+    --muted: #57534e;
+    --soft: #a8a29e;
+    --rule: rgba(28,25,23,0.10);
+    --accent: #b5523a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink);
+    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    padding: 3rem 1.5rem 2rem; line-height: 1.5; }
+  .container { max-width: 1080px; margin: 0 auto; }
+  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  h1 { font-family: 'Instrument Serif', 'Source Han Serif SC', serif; font-weight: 400;
+    font-size: 32px; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 2rem; max-width: 64ch; }
+  .frame { background: rgba(28,25,23,0.02); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--soft);
+    letter-spacing: 0.1em; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 5 章 · PIPELINE</p>
+  <h1>工具调用五步管道</h1>
+  <p class="subtitle">工具不是"调个函数就完了"。从 LLM 输出 ToolCall 到产出 ToolResultMessage，中间有五个步骤。每一步都可以拦截、修改、阻止执行——这是 Agent 安全和可控的关键。</p>
+
+  <div class="frame">
+  <svg viewBox="0 0 960 720" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+    </defs>
+
+    <rect width="960" height="720" fill="#faf7f2"/>
+
+    <!-- Input: ToolCall -->
+    <rect x="320" y="20" width="320" height="56" rx="6" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="480" y="44" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">LLM 输出 ToolCall</text>
+    <text x="480" y="62" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace"
+          text-anchor="middle">{ name, arguments }</text>
+
+    <line x1="480" y1="76" x2="480" y2="104" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- ===== Step 1: prepareArguments ===== -->
+    <rect x="280" y="108" width="400" height="64" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+    <circle cx="304" cy="140" r="14" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1"/>
+    <text x="304" y="145" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">1</text>
+    <text x="328" y="132" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">prepareArguments</text>
+    <text x="328" y="152" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">参数预处理 · 处理 LLM 参数怪癖</text>
+    <text x="328" y="166" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">例：补默认值、类型修正</text>
+
+    <line x1="480" y1="172" x2="480" y2="200" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- ===== Step 2: validateToolArguments ===== -->
+    <rect x="280" y="204" width="400" height="64" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+    <circle cx="304" cy="236" r="14" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1"/>
+    <text x="304" y="241" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">2</text>
+    <text x="328" y="228" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">validateToolArguments</text>
+    <text x="328" y="248" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">TypeBox Schema 校验</text>
+    <text x="328" y="262" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">参数类型/必填/范围检查</text>
+
+    <line x1="480" y1="268" x2="480" y2="296" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- ===== Step 3: beforeToolCall ===== -->
+    <rect x="280" y="300" width="400" height="64" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+    <circle cx="304" cy="332" r="14" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1"/>
+    <text x="304" y="337" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">3</text>
+    <text x="328" y="324" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">beforeToolCall</text>
+    <text x="328" y="344" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">权限检查 · 可阻止执行</text>
+    <text x="328" y="358" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">返回 { block: true } → 拒绝</text>
+
+    <line x1="480" y1="364" x2="480" y2="392" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- ===== Step 4: tool.execute ===== -->
+    <rect x="280" y="396" width="400" height="64" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.4"/>
+    <circle cx="304" cy="428" r="14" fill="rgba(181,82,58,0.20)" stroke="#b5523a" stroke-width="1.4"/>
+    <text x="304" y="433" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">4</text>
+    <text x="328" y="420" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">tool.execute()</text>
+    <text x="328" y="440" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">真正执行 · 通过 Operations 接口</text>
+    <text x="328" y="454" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">fs.readFile / 命令执行 / ...</text>
+
+    <line x1="480" y1="460" x2="480" y2="488" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- ===== Step 5: afterToolCall ===== -->
+    <rect x="280" y="492" width="400" height="64" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+    <circle cx="304" cy="524" r="14" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1"/>
+    <text x="304" y="529" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">5</text>
+    <text x="328" y="516" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">afterToolCall</text>
+    <text x="328" y="536" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">后处理 · 日志、审计、修改结果</text>
+    <text x="328" y="550" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">例：脱敏、记录执行时长</text>
+
+    <line x1="480" y1="556" x2="480" y2="584" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- Output: ToolResultMessage -->
+    <rect x="320" y="588" width="320" height="56" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.2"/>
+    <text x="480" y="612" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">ToolResultMessage</text>
+    <text x="480" y="630" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace"
+          text-anchor="middle">{ isError: false, content: [...] }</text>
+
+    <!-- ===== Right side: failure branches ===== -->
+    <text x="744" y="92" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">FAILURE PATH</text>
+    <text x="744" y="108" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif">每步都可中断</text>
+
+    <line x1="680" y1="140" x2="744" y2="140" stroke="#b5523a" stroke-width="1" stroke-dasharray="4,3"/>
+    <line x1="680" y1="236" x2="744" y2="236" stroke="#b5523a" stroke-width="1" stroke-dasharray="4,3"/>
+    <line x1="680" y1="332" x2="744" y2="332" stroke="#b5523a" stroke-width="1" stroke-dasharray="4,3"/>
+    <line x1="680" y1="428" x2="744" y2="428" stroke="#b5523a" stroke-width="1" stroke-dasharray="4,3"/>
+    <line x1="680" y1="524" x2="744" y2="524" stroke="#b5523a" stroke-width="1" stroke-dasharray="4,3"/>
+
+    <rect x="748" y="124" width="172" height="32" rx="4" fill="rgba(181,82,58,0.05)" stroke="rgba(181,82,58,0.40)" stroke-width="0.8"/>
+    <text x="834" y="144" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">参数预处理失败</text>
+
+    <rect x="748" y="220" width="172" height="32" rx="4" fill="rgba(181,82,58,0.05)" stroke="rgba(181,82,58,0.40)" stroke-width="0.8"/>
+    <text x="834" y="240" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">类型校验不通过</text>
+
+    <rect x="748" y="316" width="172" height="32" rx="4" fill="rgba(181,82,58,0.05)" stroke="rgba(181,82,58,0.40)" stroke-width="0.8"/>
+    <text x="834" y="336" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">权限拦截 / block</text>
+
+    <rect x="748" y="412" width="172" height="32" rx="4" fill="rgba(181,82,58,0.05)" stroke="rgba(181,82,58,0.40)" stroke-width="0.8"/>
+    <text x="834" y="432" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">执行抛出异常</text>
+
+    <rect x="748" y="508" width="172" height="32" rx="4" fill="rgba(181,82,58,0.05)" stroke="rgba(181,82,58,0.40)" stroke-width="0.8"/>
+    <text x="834" y="528" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">后处理修改结果</text>
+
+    <!-- All failures converge to error result -->
+    <path d="M 834 156 L 834 220 M 834 252 L 834 316 M 834 348 L 834 412 M 834 444 L 834 508 M 834 540 L 834 600"
+          fill="none" stroke="#b5523a" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>
+    <path d="M 834 600 L 700 600" stroke="#b5523a" stroke-width="1" stroke-dasharray="4,3"/>
+    <rect x="620" y="640" width="248" height="32" rx="4" fill="rgba(28,25,23,0.05)" stroke="#1c1917" stroke-width="1"/>
+    <text x="744" y="660" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">→ 同样产 ToolResultMessage（isError: true）</text>
+
+    <!-- ===== Left side: principle ===== -->
+    <line x1="40" y1="690" x2="920" y2="690" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+    <text x="40" y="708" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">DESIGN</text>
+    <text x="100" y="708" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" font-style="italic">
+      所有失败最终都编码成 isError:true 的消息——循环不被异常打断。这就是"永不抛出"原则。
+    </text>
+  </svg>
+  </div>
+
+  <div class="footer">
+    <span>PI-AGENT · 项目原理二次整理版</span>
+    <span>260702 · CH05 · PIPELINE</span>
+  </div>
+</div>
+</body>
+</html>

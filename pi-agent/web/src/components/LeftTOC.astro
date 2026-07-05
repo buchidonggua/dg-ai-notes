@@ -1,0 +1,141 @@
+---
+// src/components/LeftTOC.astro
+// Shows all TS-variant modules in the left sidebar; highlights current.
+// 标题可点击收起/展开，状态记到 localStorage（key: pi-agent-book:toc-collapsed）。
+import { getAllModules, type ModuleEntry } from '../utils/collection';
+
+interface Props { currentEntry: ModuleEntry; }
+const { currentEntry } = Astro.props;
+const allModules = (await getAllModules()).filter(m => m.data.variant === 'ts');
+const currentBaseSlug = currentEntry.slug.replace(/\.python$/, '');
+---
+
+<nav class="toc" id="left-toc" aria-label="目录">
+  <button
+    class="toc-toggle"
+    type="button"
+    aria-expanded="true"
+    aria-controls="toc-list"
+  >
+    <span class="toc-toggle-bar" aria-hidden="true"></span>
+    <span class="toc-toggle-label">CONTENTS</span>
+    <svg class="toc-toggle-caret" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+      <path d="M2.5 3.5L5 6.5L7.5 3.5" stroke="currentColor" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+  <ul class="toc-list" id="toc-list">
+    {allModules.map(m => {
+      const isCurrent = m.slug === currentBaseSlug;
+      return (
+        <li class={`toc-item ${isCurrent ? 'is-current' : ''}`}>
+          <a href={`/modules/${m.slug}`}>
+            <span class="toc-num">{m.data.module}</span>
+            <span class="toc-title">{m.data.title}</span>
+          </a>
+        </li>
+      );
+    })}
+  </ul>
+</nav>
+
+<script>
+  const STORAGE_KEY = 'pi-agent-book:toc-collapsed';
+  const nav = document.getElementById('left-toc');
+  if (nav) {
+    const btn = nav.querySelector<HTMLButtonElement>('.toc-toggle');
+    const list = document.getElementById('toc-list');
+    if (btn && list) {
+      // 恢复持久化状态（SSR 默认展开，JS 接管后再 collapse 避免 FOUC）
+      let collapsed = false;
+      try { collapsed = localStorage.getItem(STORAGE_KEY) === 'true'; } catch { /* noop */ }
+      if (collapsed) {
+        nav.classList.add('is-collapsed');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+
+      btn.addEventListener('click', () => {
+        const next = !nav.classList.contains('is-collapsed');
+        nav.classList.toggle('is-collapsed', next);
+        btn.setAttribute('aria-expanded', next ? 'false' : 'true');
+        try { localStorage.setItem(STORAGE_KEY, String(next)); } catch { /* noop */ }
+      });
+    }
+  }
+</script>
+
+<style is:global>
+/* is:global：runtime 切 class 不依赖 scoped cid，selector 一定匹配。
+   所有规则以 .toc- 前缀专属，不会污染全局。 */
+.toc { position: sticky; top: calc(var(--topbar-h) + var(--space-6)); max-height: calc(100vh - var(--topbar-h) - var(--space-6) - var(--space-5)); overflow-y: auto; }
+
+.toc-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3) var(--space-2) 0;
+  margin-bottom: var(--space-3);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--soft);
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.toc-toggle:hover {
+  color: var(--ink);
+  background: var(--paper-sunken);
+}
+.toc-toggle:focus-visible {
+  outline: var(--outline-w) solid var(--accent);
+  outline-offset: var(--outline-offset);
+}
+.toc-toggle-bar {
+  width: 3px;
+  height: 14px;
+  background: var(--soft);
+  border-radius: 2px;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease), height var(--dur-fast) var(--ease);
+}
+.toc-toggle:hover .toc-toggle-bar {
+  background: var(--accent);
+  height: 18px;
+}
+.toc-toggle-label {
+  flex: 1;
+  text-align: left;
+}
+.toc-toggle-caret {
+  flex-shrink: 0;
+  color: currentColor;
+  transition: transform var(--dur-base) var(--ease);
+}
+.toc.is-collapsed .toc-toggle-caret {
+  transform: rotate(-90deg);
+}
+.toc.is-collapsed .toc-list {
+  display: none;
+}
+
+.toc-list { list-style: none; padding: 0; margin: 0; }
+.toc-item { margin-bottom: var(--space-3); }
+.toc-item a {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: all var(--dur-fast);
+}
+.toc-item a:hover { background: var(--paper-sunken); color: var(--ink); }
+.toc-item.is-current > a { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+.toc-num { font-family: var(--font-mono); font-size: 13px; flex-shrink: 0; }
+</style>

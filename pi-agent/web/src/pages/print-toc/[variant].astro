@@ -1,0 +1,139 @@
+---
+// src/pages/print-toc/[variant].astro
+// PDF 导出专用目录页（路径化静态生成）：
+//   /print-toc/ts       → TypeScript 版目录
+//   /print-toc/python   → Python 版目录
+// 设计为 PDF 中使用，robots noindex；web 直接访问样式朴素。
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getPublishedModules, groupByChapter } from '../../utils/collection';
+
+export async function getStaticPaths() {
+  return [
+    { params: { variant: 'ts' } },
+    { params: { variant: 'python' } },
+  ];
+}
+
+const variant = (Astro.params.variant === 'python' ? 'python' : 'ts') as 'ts' | 'python';
+
+const all = await getPublishedModules('pi-agent');
+const chapters = groupByChapter(all);
+
+const rows = chapters.map(ch => {
+  const entry = variant === 'python' ? (ch.pythonEntry || ch.tsEntry) : (ch.tsEntry || ch.pythonEntry);
+  return {
+    module: ch.module,
+    title: entry?.data.title ?? '(未发布章节)',
+    summary: entry?.data.summary ?? '',
+  };
+});
+
+const variantLabel = variant === 'python' ? 'Python 版' : 'TypeScript 版';
+const today = new Date().toISOString().slice(0, 10);
+---
+
+<BaseLayout title={`目录 · Pi Agent Book · ${variantLabel}`}>
+  <meta name="robots" content="noindex, nofollow" />
+
+  <section class="print-toc">
+    <div class="toc-eyebrow">Pi-Agent 源码精读</div>
+    <h1>目录</h1>
+    <div class="toc-subtitle">{variantLabel}</div>
+
+    <div class="toc-list">
+      {rows.map((r, i) => (
+        <div class="toc-chapter">
+          <span class="toc-num">{String(i + 1).padStart(2, '0')}</span>
+          <div class="toc-text">
+            <div class="toc-title">{r.title}</div>
+            {r.summary && <div class="toc-summary">{r.summary}</div>}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div class="toc-meta">生成于 {today} · pi-agent-book PDF 导出</div>
+  </section>
+</BaseLayout>
+
+<style>
+  .print-toc {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 60px 32px 80px;
+    font-family: var(--font-body);
+  }
+
+  .toc-eyebrow {
+    font-family: var(--font-mono);
+    font-size: var(--fs-small);
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: var(--space-3);
+  }
+
+  .print-toc h1 {
+    font-family: var(--font-display);
+    font-size: 48px;
+    font-weight: 400;
+    line-height: 1.1;
+    margin: 0 0 var(--space-2);
+    color: var(--ink-strong);
+  }
+
+  .toc-subtitle {
+    font-size: 18px;
+    color: var(--accent);
+    margin-bottom: 48px;
+    font-weight: 500;
+  }
+
+  .toc-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .toc-chapter {
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .toc-num {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 14px;
+    min-width: 32px;
+    letter-spacing: 0.04em;
+  }
+
+  .toc-text {
+    flex: 1;
+  }
+
+  .toc-title {
+    font-size: 16px;
+    color: var(--ink-strong);
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  .toc-summary {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--soft);
+    line-height: 1.5;
+  }
+
+  .toc-meta {
+    margin-top: 48px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--soft);
+    letter-spacing: 0.02em;
+  }
+</style>

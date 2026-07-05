@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Trace 与 Turn 的嵌套结构</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #faf7f2;
+    --paper-2: #ffffff;
+    --ink: #1c1917;
+    --muted: #57534e;
+    --soft: #a8a29e;
+    --rule: rgba(28,25,23,0.10);
+    --rule-solid: rgba(28,25,23,0.20);
+    --accent: #b5523a;
+    --accent-tint: rgba(181,82,58,0.10);
+    --link: #2e5aa8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--paper); }
+  body {
+    color: var(--ink);
+    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
+    padding: 3rem 1.5rem 2rem;
+    line-height: 1.5;
+  }
+  .container { max-width: 1080px; margin: 0 auto; }
+  .eyebrow {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+  h1 {
+    font-family: 'Instrument Serif', 'Source Han Serif SC', 'Songti SC', serif;
+    font-weight: 400;
+    font-size: 32px;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.01em;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 2rem;
+    max-width: 62ch;
+  }
+  .frame {
+    background: rgba(28,25,23,0.02);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 1.25rem;
+    overflow-x: auto;
+  }
+  svg { display: block; max-width: 100%; height: auto; }
+  .footer {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    color: var(--soft);
+    letter-spacing: 0.1em;
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 3 章 · NESTED</p>
+  <h1>Trace 与 Turn 的嵌套结构</h1>
+  <p class="subtitle">一个 Trace 是从 agent_start 到 agent_end 的完整运行；每个 Turn 是一次模型调用加上这次调用触发的所有工具执行。事件按"开始→更新→结束"配对出现。</p>
+
+  <div class="frame">
+  <svg viewBox="0 0 960 560" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+    </defs>
+
+    <!-- background -->
+    <rect width="960" height="560" fill="#faf7f2"/>
+
+    <!-- agent_start event marker (top) -->
+    <rect x="380" y="20" width="200" height="28" rx="4" fill="#faf7f2" stroke="#b5523a" stroke-width="1"/>
+    <text x="480" y="38" fill="#b5523a" font-size="11" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">agent_start</text>
+
+    <line x1="480" y1="48" x2="480" y2="76" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+    <!-- TRACE outer container -->
+    <rect x="40" y="80" width="880" height="380" rx="8" fill="rgba(28,25,23,0.03)" stroke="#1c1917" stroke-width="1.2"/>
+    <text x="60" y="108" fill="#1c1917" font-size="11" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">TRACE</text>
+    <text x="60" y="124" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">一次完整运行</text>
+
+    <!-- Turn 1 -->
+    <g>
+      <rect x="68" y="140" width="272" height="300" rx="6" fill="#ffffff" stroke="rgba(28,25,23,0.20)" stroke-width="1"/>
+      <rect x="68" y="140" width="272" height="32" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="84" y="160" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif">Turn 1</text>
+      <rect x="280" y="148" width="52" height="16" rx="2" fill="rgba(181,82,58,0.10)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
+      <text x="306" y="160" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">toolUse</text>
+
+      <text x="84" y="194" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            letter-spacing="0.10em">turn_start</text>
+
+      <!-- model call -->
+      <rect x="88" y="208" width="232" height="56" rx="4" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <text x="204" y="228" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">调用模型</text>
+      <text x="204" y="248" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">streamSimple(model, ctx)</text>
+
+      <line x1="204" y1="264" x2="204" y2="284" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+      <!-- tool exec -->
+      <rect x="88" y="288" width="232" height="56" rx="4" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+      <text x="204" y="308" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">执行工具（一批）</text>
+      <text x="204" y="328" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">read + grep + find</text>
+
+      <text x="84" y="380" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            letter-spacing="0.10em">turn_end</text>
+      <line x1="84" y1="384" x2="324" y2="384" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+      <text x="84" y="402" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif">stopReason = toolUse</text>
+      <text x="84" y="418" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif">→ 把工具结果喂回去</text>
+    </g>
+
+    <!-- Turn 2 -->
+    <g>
+      <rect x="344" y="140" width="272" height="300" rx="6" fill="#ffffff" stroke="rgba(28,25,23,0.20)" stroke-width="1"/>
+      <rect x="344" y="140" width="272" height="32" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="360" y="160" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif">Turn 2</text>
+      <rect x="556" y="148" width="52" height="16" rx="2" fill="rgba(181,82,58,0.10)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
+      <text x="582" y="160" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">toolUse</text>
+
+      <text x="360" y="194" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            letter-spacing="0.10em">turn_start</text>
+
+      <rect x="364" y="208" width="232" height="56" rx="4" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <text x="480" y="228" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">再次调用模型</text>
+      <text x="480" y="248" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">消息中带上工具结果</text>
+
+      <line x1="480" y1="264" x2="480" y2="284" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+
+      <rect x="364" y="288" width="232" height="56" rx="4" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
+      <text x="480" y="308" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">执行工具（一批）</text>
+      <text x="480" y="328" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">edit</text>
+
+      <text x="360" y="380" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            letter-spacing="0.10em">turn_end</text>
+      <line x1="360" y1="384" x2="600" y2="384" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+      <text x="360" y="402" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif">stopReason = toolUse</text>
+    </g>
+
+    <!-- Turn 3 (final, no tool) -->
+    <g>
+      <rect x="620" y="140" width="272" height="300" rx="6" fill="#ffffff" stroke="rgba(28,25,23,0.20)" stroke-width="1"/>
+      <rect x="620" y="140" width="272" height="32" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="636" y="160" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif">Turn 3</text>
+      <rect x="836" y="148" width="44" height="16" rx="2" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+      <text x="858" y="160" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">stop</text>
+
+      <text x="636" y="194" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            letter-spacing="0.10em">turn_start</text>
+
+      <rect x="640" y="208" width="232" height="56" rx="4" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.2"/>
+      <text x="756" y="228" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">调用模型</text>
+      <text x="756" y="248" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">看到工具结果，给出解释</text>
+
+      <line x1="756" y1="264" x2="756" y2="284" stroke="#57534e" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <rect x="640" y="288" width="232" height="56" rx="4" fill="rgba(28,25,23,0.02)" stroke="rgba(28,25,23,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="756" y="308" fill="#a8a29e" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">（无工具调用）</text>
+      <text x="756" y="328" fill="#a8a29e" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">toolCalls 为空</text>
+
+      <text x="636" y="380" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+            letter-spacing="0.10em">turn_end</text>
+      <line x1="636" y1="384" x2="876" y2="384" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+      <text x="636" y="402" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif">stopReason = stop</text>
+      <text x="636" y="418" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif">→ 循环准备退出</text>
+    </g>
+
+    <!-- connectors between turns -->
+    <path d="M 340 290 L 344 290" stroke="#57534e" stroke-width="1" fill="none"/>
+    <path d="M 616 290 L 620 290" stroke="#57534e" stroke-width="1" fill="none"/>
+
+    <!-- agent_end -->
+    <line x1="480" y1="460" x2="480" y2="488" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+    <rect x="380" y="492" width="200" height="28" rx="4" fill="#faf7f2" stroke="#b5523a" stroke-width="1"/>
+    <text x="480" y="510" fill="#b5523a" font-size="11" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">agent_end</text>
+
+    <!-- legend -->
+    <line x1="40" y1="534" x2="920" y2="534" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+    <text x="40" y="550" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">LEGEND</text>
+    <rect x="100" y="544" width="10" height="8" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="0.8"/>
+    <text x="116" y="551" fill="#57534e" font-size="8" font-family="'Geist', sans-serif">焦点：模型/工具环节</text>
+    <rect x="240" y="544" width="10" height="8" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
+    <text x="256" y="551" fill="#57534e" font-size="8" font-family="'Geist', sans-serif">事件边界</text>
+    <text x="340" y="551" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" font-style="italic">一个 Turn = 一次模型调用 + 其触发的所有工具执行</text>
+  </svg>
+  </div>
+
+  <div class="footer">
+    <span>PI-AGENT · 项目原理二次整理版</span>
+    <span>260702 · CH03 · NESTED</span>
+  </div>
+</div>
+</body>
+</html>

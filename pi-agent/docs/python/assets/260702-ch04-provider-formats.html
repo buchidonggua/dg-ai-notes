@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>四个 Provider 的消息格式差异</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #faf7f2;
+    --ink: #1c1917;
+    --muted: #57534e;
+    --soft: #a8a29e;
+    --rule: rgba(28,25,23,0.10);
+    --accent: #b5523a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink);
+    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    padding: 3rem 1.5rem 2rem; line-height: 1.5; }
+  .container { max-width: 1140px; margin: 0 auto; }
+  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  h1 { font-family: 'Instrument Serif', 'Source Han Serif SC', serif; font-weight: 400;
+    font-size: 32px; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 1.5rem; max-width: 64ch; }
+  .frame { background: rgba(28,25,23,0.02); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--soft);
+    letter-spacing: 0.1em; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 4 章 · COMPARISON</p>
+  <h1>同一条消息，四种长相</h1>
+  <p class="subtitle">用户对 Agent 说"帮我读一下 main.ts"。这条消息在 Pi 内部统一存为 UserMessage。但要发给不同模型，必须翻译成各家要求的格式。看最简单的纯文本消息，差异就已经够大了。</p>
+
+  <div class="frame">
+  <svg viewBox="0 0 1080 580" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1080" height="580" fill="#faf7f2"/>
+
+    <!-- Top: unified format -->
+    <rect x="320" y="20" width="440" height="76" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.2"/>
+    <rect x="336" y="32" width="120" height="14" rx="2" fill="rgba(181,82,58,0.10)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
+    <text x="396" y="43" fill="#b5523a" font-size="7" font-family="'Geist Mono', monospace"
+          text-anchor="middle" letter-spacing="0.08em">UNIFIED · PI-INTERNAL</text>
+    <text x="540" y="68" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+          text-anchor="middle">UserMessage（统一格式）</text>
+    <text x="540" y="86" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace"
+          text-anchor="middle">{ role: "user", content: "帮我读一下 main.ts" }</text>
+
+    <!-- 4 down arrows -->
+    <line x1="160" y1="96" x2="160" y2="128" stroke="#b5523a" stroke-width="1" marker-end="url(#arrow-accent)"/>
+    <line x1="420" y1="96" x2="420" y2="128" stroke="#b5523a" stroke-width="1" marker-end="url(#arrow-accent)"/>
+    <line x1="680" y1="96" x2="680" y2="128" stroke="#b5523a" stroke-width="1" marker-end="url(#arrow-accent)"/>
+    <line x1="940" y1="96" x2="940" y2="128" stroke="#b5523a" stroke-width="1" marker-end="url(#arrow-accent)"/>
+
+    <defs>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+    </defs>
+
+    <!-- 4 cards -->
+    <!-- Anthropic -->
+    <g>
+      <rect x="40" y="132" width="240" height="296" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="40" y="132" width="240" height="32" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="56" y="152" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">Anthropic</text>
+      <text x="264" y="152" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">Claude</text>
+
+      <text x="56" y="184" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">content 必须是数组</text>
+      <text x="56" y="198" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">每项带 type 字段</text>
+
+      <rect x="56" y="212" width="208" height="180" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.15)" stroke-width="0.6"/>
+      <text x="64" y="230" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">{</text>
+      <text x="76" y="246" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">role: </text>
+      <text x="116" y="246" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">"user"</text>
+      <text x="76" y="262" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">content: [</text>
+      <text x="88" y="278" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">{</text>
+      <text x="100" y="294" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">type: "text"</text>
+      <text x="100" y="310" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">text: "..."</text>
+      <text x="88" y="326" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">}</text>
+      <text x="76" y="342" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">]</text>
+      <text x="56" y="358" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">}</text>
+
+      <rect x="56" y="404" width="208" height="16" rx="2" fill="rgba(181,82,58,0.08)"/>
+      <text x="64" y="416" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace">★ 数组 + type 标签</text>
+    </g>
+
+    <!-- OpenAI -->
+    <g>
+      <rect x="300" y="132" width="240" height="296" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="300" y="132" width="240" height="32" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="316" y="152" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">OpenAI</text>
+      <text x="524" y="152" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">GPT</text>
+
+      <text x="316" y="184" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">纯文本用字符串</text>
+      <text x="316" y="198" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">但工具结果用 </text>
+      <text x="316" y="212" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">{ role: "tool" }</text>
+
+      <rect x="316" y="226" width="208" height="166" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.15)" stroke-width="0.6"/>
+      <text x="324" y="244" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">{</text>
+      <text x="336" y="260" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">role: </text>
+      <text x="376" y="260" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">"user"</text>
+      <text x="336" y="276" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">content: </text>
+      <text x="396" y="276" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">"..."</text>
+      <text x="324" y="292" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">}</text>
+
+      <line x1="324" y1="304" x2="516" y2="304" stroke="rgba(28,25,23,0.10)" stroke-width="0.6" stroke-dasharray="3,3"/>
+      <text x="324" y="322" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">工具结果换条消息：</text>
+      <text x="324" y="340" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">{ role: </text>
+      <text x="372" y="340" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">"tool"</text>
+      <text x="404" y="340" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">, ... }</text>
+      <text x="324" y="362" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">（Anthropic 是合并到</text>
+      <text x="324" y="376" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">user 消息里）</text>
+
+      <rect x="316" y="404" width="208" height="16" rx="2" fill="rgba(181,82,58,0.08)"/>
+      <text x="324" y="416" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace">★ 工具结果独立 role</text>
+    </g>
+
+    <!-- Google -->
+    <g>
+      <rect x="560" y="132" width="240" height="296" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="560" y="132" width="240" height="32" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="576" y="152" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">Google</text>
+      <text x="784" y="152" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">Gemini</text>
+
+      <text x="576" y="184" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">字段名变了</text>
+      <text x="576" y="198" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif">content → parts</text>
+      <text x="576" y="212" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">结构更扁平</text>
+
+      <rect x="576" y="226" width="208" height="166" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.15)" stroke-width="0.6"/>
+      <text x="584" y="244" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">{</text>
+      <text x="596" y="260" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">role: </text>
+      <text x="636" y="260" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">"user"</text>
+      <text x="596" y="276" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">parts: [</text>
+      <text x="608" y="292" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">{ text: "..." }</text>
+      <text x="596" y="308" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">]</text>
+      <text x="584" y="324" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">}</text>
+
+      <line x1="584" y1="344" x2="776" y2="344" stroke="rgba(28,25,23,0.10)" stroke-width="0.6" stroke-dasharray="3,3"/>
+      <text x="584" y="362" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">连顶层字段名都不同</text>
+      <text x="584" y="376" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">没有 type 标签</text>
+
+      <rect x="560" y="404" width="208" height="16" rx="2" fill="rgba(181,82,58,0.08)"/>
+      <text x="568" y="416" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace">★ parts 取代 content</text>
+    </g>
+
+    <!-- Bedrock -->
+    <g>
+      <rect x="820" y="132" width="220" height="296" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="820" y="132" width="220" height="32" rx="6" fill="rgba(28,25,23,0.05)"/>
+      <text x="836" y="152" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">Bedrock</text>
+      <text x="1024" y="152" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">AWS</text>
+
+      <text x="836" y="184" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">在 AWS 结构上</text>
+      <text x="836" y="198" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">又包了一层</text>
+      <text x="836" y="212" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif">没有 type 字段</text>
+
+      <rect x="836" y="226" width="188" height="166" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.15)" stroke-width="0.6"/>
+      <text x="844" y="244" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">{</text>
+      <text x="856" y="260" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">role: </text>
+      <text x="892" y="260" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">"user"</text>
+      <text x="856" y="276" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">content: [</text>
+      <text x="868" y="292" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">{</text>
+      <text x="880" y="308" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">text: "..."</text>
+      <text x="868" y="324" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">}</text>
+      <text x="856" y="340" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">]</text>
+      <text x="844" y="356" fill="#1c1917" font-size="10" font-family="'Geist Mono', monospace">}</text>
+
+      <line x1="844" y1="372" x2="1016" y2="372" stroke="rgba(28,25,23,0.10)" stroke-width="0.6" stroke-dasharray="3,3"/>
+      <text x="844" y="386" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">和 Anthropic 像但更简洁</text>
+
+      <rect x="820" y="404" width="220" height="16" rx="2" fill="rgba(181,82,58,0.08)"/>
+      <text x="828" y="416" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace">★ 无 type，结构独特</text>
+    </g>
+
+    <!-- Bottom: 四个维度 -->
+    <line x1="40" y1="448" x2="1040" y2="448" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
+    <text x="40" y="468" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.14em">FOUR DIMENSIONS OF DIFFERENCE</text>
+
+    <text x="40" y="492" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">① <tspan fill="#57534e">消息格式</tspan> · content[] vs parts[] vs 字符串</text>
+    <text x="40" y="512" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">③ <tspan fill="#57534e">思考模式</tspan> · budget_tokens vs reasoning_effort vs thinkingConfig</text>
+    <text x="540" y="492" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">② <tspan fill="#57534e">流式传输</tspan> · 原始 SSE 自解析 vs SDK 直接给结构化 chunk</text>
+    <text x="540" y="512" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">④ <tspan fill="#57534e">缓存控制</tspan> · cache_control 标记 vs cachePoint 节点</text>
+
+    <text x="40" y="546" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" font-style="italic">
+      四个维度 × 30 多个 Provider = 组合起来的差异量巨大。这正是 Pi 需要"翻译器"层的原因。
+    </text>
+  </svg>
+  </div>
+
+  <div class="footer">
+    <span>PI-AGENT · 项目原理二次整理版</span>
+    <span>260702 · CH04 · COMPARISON</span>
+  </div>
+</div>
+</body>
+</html>

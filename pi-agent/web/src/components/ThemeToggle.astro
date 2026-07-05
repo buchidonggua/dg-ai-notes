@@ -1,0 +1,68 @@
+---
+// src/components/ThemeToggle.astro
+// Completes Task 8 too: toggle data-theme on <html>, persist to localStorage.
+// Anti-FOUC script is already in BaseLayout.astro (runs before paint).
+---
+
+<button id="theme-toggle" aria-label="切换深浅色模式" title="切换主题 (T)">
+  <span class="icon icon-sun" aria-hidden="true">☀</span>
+  <span class="icon icon-moon" aria-hidden="true">☾</span>
+</button>
+
+<script>
+  const btn = document.getElementById('theme-toggle')!;
+  const update = () => {
+    const cur = document.documentElement.dataset.theme || 'light';
+    btn.dataset.theme = cur;
+    btn.setAttribute('aria-pressed', String(cur === 'dark'));
+  };
+  btn.addEventListener('click', () => {
+    const cur = document.documentElement.dataset.theme || 'light';
+    const next = cur === 'light' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem('pi-agent-book:theme', next);
+    update();
+  });
+  // Keyboard shortcut: press "T" to toggle theme (when not typing in a field)
+  document.addEventListener('keydown', (e) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+    if (e.key === 't' || e.key === 'T') {
+      e.preventDefault();
+      btn.click();
+      btn.focus();
+    }
+  });
+  // Sync across tabs
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'pi-agent-book:theme') update();
+  });
+  update();
+</script>
+
+<style>
+  #theme-toggle {
+    background: none;
+    border: var(--border-w) solid var(--rule);
+    border-radius: var(--radius-sm);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all var(--dur-fast);
+  }
+  #theme-toggle:hover {
+    color: var(--ink);
+    border-color: var(--rule-strong);
+  }
+  #theme-toggle:focus-visible {
+    outline-offset: var(--outline-offset);
+  }
+
+  .icon { display: none; font-size: 18px; line-height: 1; }
+  #theme-toggle[data-theme="light"] .icon-moon { display: block; }
+  #theme-toggle[data-theme="dark"] .icon-sun { display: block; }
+</style>

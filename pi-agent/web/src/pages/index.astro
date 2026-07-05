@@ -1,0 +1,11 @@
+---
+// src/pages/index.astro
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/home/Hero.astro';
+import ModuleGrid from '../components/home/ModuleGrid.astro';
+---
+
+<BaseLayout title="Pi Agent Book · 源码精读笔记">
+  <Hero />
+  <ModuleGrid book="pi-agent" />
+</BaseLayout>

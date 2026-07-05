@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>上下文工程的四层防护</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #faf7f2;
+    --ink: #1c1917;
+    --muted: #57534e;
+    --soft: #a8a29e;
+    --rule: rgba(28,25,23,0.10);
+    --accent: #b5523a;
+    --green: #2d6e3c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink);
+    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    padding: 3rem 1.5rem 2rem; line-height: 1.5; }
+  .container { max-width: 1140px; margin: 0 auto; }
+  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  h1 { font-family: 'Instrument Serif', 'Source Han Serif SC', serif; font-weight: 400;
+    font-size: 32px; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 2rem; max-width: 64ch; }
+  .frame { background: rgba(28,25,23,0.02); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--soft);
+    letter-spacing: 0.1em; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 8 章 · CONTEXT ENGINEERING MAP</p>
+  <h1>上下文工程的四层防护</h1>
+  <p class="subtitle">LLM 上下文窗口固定（200K），但 coding-agent 对话无限增长。Pi 在"输入侧"和"历史侧"两层各布置两种机制——减法裁剪体积，加法注入规范，把"对当前任务最有价值的信息"送进 LLM。</p>
+
+  <div class="frame">
+  <svg viewBox="0 0 1080 660" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
+      </marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
+      </marker>
+    </defs>
+
+    <rect width="1080" height="660" fill="#faf7f2"/>
+
+    <!-- ===== Top: 固定窗口 vs 无限对话 张力 ===== -->
+    <g>
+      <rect x="40" y="32" width="460" height="76" rx="6" fill="rgba(28,25,23,0.04)" stroke="rgba(28,25,23,0.20)" stroke-width="1"/>
+      <text x="60" y="58" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace" letter-spacing="0.12em">LLM 上下文窗口（固定）</text>
+      <rect x="60" y="68" width="420" height="24" rx="3" fill="rgba(28,25,23,0.10)"/>
+      <text x="270" y="84" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle" font-weight="600">Claude 200K · GPT 128K · 硬上限</text>
+    </g>
+
+    <g>
+      <rect x="580" y="32" width="460" height="76" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.2"/>
+      <text x="600" y="58" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" letter-spacing="0.12em">CODE-AGENT 对话（无限增长）</text>
+      <rect x="600" y="68" width="120" height="24" rx="3" fill="rgba(181,82,58,0.30)"/>
+      <rect x="724" y="68" width="160" height="24" rx="3" fill="rgba(181,82,58,0.50)"/>
+      <rect x="888" y="68" width="172" height="24" rx="3" fill="rgba(181,82,58,0.80)"/>
+      <text x="810" y="84" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle" font-weight="600">系统提示词 + 工具结果 + 历史 + 新输入</text>
+    </g>
+
+    <!-- Tension arrow -->
+    <text x="540" y="120" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace"
+          letter-spacing="0.10em" text-anchor="middle">↯  超 → prompt is too long</text>
+
+    <!-- ===== Layer 1: 输入侧 ===== -->
+    <g>
+      <rect x="40" y="148" width="1000" height="200" rx="8" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="40" y="148" width="1000" height="40" rx="8" fill="rgba(181,82,58,0.06)"/>
+      <text x="60" y="174" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">输入侧 · 送进 LLM 之前</text>
+      <text x="1020" y="174" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" text-anchor="end">EACH PROMPT</text>
+
+      <!-- ① truncate -->
+      <g transform="translate(60, 208)">
+        <rect x="0" y="0" width="460" height="124" rx="6" fill="rgba(181,82,58,0.04)" stroke="rgba(181,82,58,0.50)" stroke-width="1"/>
+        <text x="20" y="24" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">① 减法</text>
+        <text x="20" y="48" fill="#1c1917" font-size="14" font-weight="600" font-family="'Geist', sans-serif">工具输出截断</text>
+        <text x="20" y="68" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">truncateHead / truncateTail</text>
+        <text x="20" y="88" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">2000 行 / 50KB 双重限制</text>
+        <text x="20" y="108" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">单条 bash / read / grep 结果太大就裁</text>
+      </g>
+
+      <!-- ② system-prompt -->
+      <g transform="translate(560, 208)">
+        <rect x="0" y="0" width="460" height="124" rx="6" fill="rgba(45,110,60,0.04)" stroke="rgba(45,110,60,0.50)" stroke-width="1"/>
+        <text x="20" y="24" fill="#2d6e3c" font-size="10" font-family="'Geist Mono', monospace">② 加法</text>
+        <text x="20" y="48" fill="#1c1917" font-size="14" font-weight="600" font-family="'Geist', sans-serif">系统提示词组装</text>
+        <text x="20" y="68" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">CLAUDE.md 向上递归 + Skills 懒加载</text>
+        <text x="20" y="88" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">XML 包装让 LLM 理解项目规范</text>
+        <text x="20" y="108" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">让 LLM 自动知道"用 pnpm 不用 npm"</text>
+      </g>
+    </g>
+
+    <!-- Arrow between layers -->
+    <line x1="540" y1="358" x2="540" y2="396" stroke="#57534e" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+    <!-- ===== Layer 2: 历史侧 ===== -->
+    <g>
+      <rect x="40" y="404" width="1000" height="200" rx="8" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <rect x="40" y="404" width="1000" height="40" rx="8" fill="rgba(28,25,23,0.04)"/>
+      <text x="60" y="430" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">历史侧 · 长对话管理</text>
+      <text x="1020" y="430" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace" text-anchor="end">THRESHOLD / BRANCH</text>
+
+      <!-- ③ compaction -->
+      <g transform="translate(60, 464)">
+        <rect x="0" y="0" width="460" height="124" rx="6" fill="rgba(181,82,58,0.04)" stroke="rgba(181,82,58,0.50)" stroke-width="1"/>
+        <text x="20" y="24" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">③ 压缩（独立成章 · 第 9 章）</text>
+        <text x="20" y="48" fill="#1c1917" font-size="14" font-weight="600" font-family="'Geist', sans-serif">Compaction</text>
+        <text x="20" y="68" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">阈值触发：contextTokens &gt; window − reserve</text>
+        <text x="20" y="88" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">旧消息 → 6 section 结构化摘要</text>
+        <text x="20" y="108" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">线性对话过长时腾出空间</text>
+      </g>
+
+      <!-- ④ branch-summary -->
+      <g transform="translate(560, 464)">
+        <rect x="0" y="0" width="460" height="124" rx="6" fill="rgba(45,110,60,0.04)" stroke="rgba(45,110,60,0.50)" stroke-width="1"/>
+        <text x="20" y="24" fill="#2d6e3c" font-size="10" font-family="'Geist Mono', monospace">④ 加法 · LCA 算法</text>
+        <text x="20" y="48" fill="#1c1917" font-size="14" font-weight="600" font-family="'Geist', sans-serif">Branch Summarization</text>
+        <text x="20" y="68" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">用户切换会话树分支时触发</text>
+        <text x="20" y="88" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">给被抛弃分支生成精简摘要（2048 tok）</text>
+        <text x="20" y="108" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">让新分支知道旧分支试过什么</text>
+      </g>
+    </g>
+
+    <!-- ===== Bottom legend ===== -->
+    <g transform="translate(40, 624)">
+      <rect x="0" y="0" width="14" height="14" rx="2" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1"/>
+      <text x="22" y="12" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">减法 · 把太大的东西变小</text>
+    </g>
+    <g transform="translate(280, 624)">
+      <rect x="0" y="0" width="14" height="14" rx="2" fill="rgba(45,110,60,0.10)" stroke="#2d6e3c" stroke-width="1"/>
+      <text x="22" y="12" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">加法 · 主动加入结构与摘要</text>
+    </g>
+    <g transform="translate(560, 624)">
+      <rect x="0" y="0" width="14" height="14" rx="2" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+      <text x="22" y="12" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">没有银弹，只有层层兜底</text>
+    </g>
+  </svg>
+  </div>
+
+  <div class="footer">
+    <span>PI-AGENT · 项目原理二次整理版</span>
+    <span>260702 · CH08 · CONTEXT MAP</span>
+  </div>
+</div>
+</body>
+</html>

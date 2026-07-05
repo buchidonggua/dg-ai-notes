@@ -1,0 +1,187 @@
+---
+// src/components/DiagramLightbox.astro
+// 全局 Lightbox 组件：负责三项工作——
+//   1. SVG 内联注入（将 <img src="*.svg"> 替换为内联 <svg>，启用 S2 联动）
+//   2. Lightbox 行为（点击放大、ESC 关闭、滚轮缩放、焦点循环）
+//   3. 配合 diagram-linker.js 完成 S2 联动初始化
+//
+// 此组件在 ModuleLayout.astro 中全局挂载一次，所有页面共享同一实例。
+// Diagram.astro 仅渲染 <figure> 标记，不包含任何 lightbox 脚本。
+---
+
+<!--
+  全局 Lightbox 叠加层样式。
+  颜色/尺寸全部使用 var() token，零硬编码。
+-->
+<style is:global>
+#diagram-lightbox {
+  position: fixed;
+  inset: 0;
+  display: none;
+  z-index: var(--lb-z);
+}
+#diagram-lightbox.is-open { display: block; }
+#diagram-lightbox .lb-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--lb-backdrop-bg);
+}
+#diagram-lightbox .lb-img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-3);
+}
+#diagram-lightbox .lb-close {
+  position: absolute;
+  top: var(--space-6);
+  right: var(--space-8);
+  width: var(--lb-size);
+  height: var(--lb-size);
+  background: var(--lb-btn-bg);
+  border: var(--lb-border-w) solid var(--lb-btn-border);
+  border-radius: 50%;
+  color: var(--lb-btn-fg);
+  font-size: var(--lb-close-fs);
+  cursor: pointer;
+}
+</style>
+
+<script>
+  // —— SVG 内联注入 ——
+  // 原因：<img src="*.svg"> 渲染的 SVG 是黑盒，JS 无法访问内部 [data-anchor] 节点，
+  //       导致 S2 diagram-linker 无法工作。这里把 <img> 替换为内联 <svg>。
+  //       内联后 dispatch `diagram:inline` 事件，让 diagram-linker.js 重新绑定。
+  //
+  // 安全：使用 DOMParser 在独立的 XML 文档上下文中解析 SVG，
+  //       不触发脚本执行，不污染主 DOM，比 innerHTML 更安全。
+  function inlineSvgDiagrams() {
+    const imgs = document.querySelectorAll<HTMLElement>('figure.diagram > img[src$=".svg"]:not([data-inlined])');
+    imgs.forEach(img => {
+      const src = (img as HTMLImageElement).src || img.getAttribute('src') || '';
+      // 同源才内联（避免跨域）
+      if (!src || !src.startsWith(location.origin) && !src.startsWith('/')) return;
+      fetch(src, { credentials: 'same-origin' })
+        .then(r => { if (!r.ok) throw new Error('SVG fetch ' + r.status); return r.text(); })
+        .then(text => {
+          // DOMParser 在独立 XML 文档上下文中解析 SVG —— 无脚本执行风险
+          const doc = new DOMParser().parseFromString(text.trim(), 'image/svg+xml');
+          const svg = doc.querySelector('svg');
+          if (!svg) return;
+          // 确保可访问性属性迁移
+          const alt = img.getAttribute('alt');
+          if (alt) {
+            svg.setAttribute('role', 'img');
+            svg.setAttribute('aria-label', alt);
+          }
+          svg.classList.add('diagram-inline-svg');
+          // 保留原始 img 用于 lightbox（点击 svg 也放大）—— 给 svg 加上 data-src
+          svg.setAttribute('data-src', src);
+          img.setAttribute('data-inlined', '1');
+          // 隐藏原 img（保留占位），把 svg 插在 img 之前
+          img.style.display = 'none';
+          img.parentNode!.insertBefore(svg, img);
+          // 计数（供 Playwright PDF 渲染等待用）
+          (window as any).__diagramInlineCount__ = ((window as any).__diagramInlineCount__ || 0) + 1;
+          // 通知 diagram-linker 重新绑定
+          document.dispatchEvent(new CustomEvent('diagram:inline'));
+        })
+        .catch(err => {
+          if (window.console && console.warn) {
+            console.warn('[DiagramLightbox] SVG inline failed for', src, err);
+          }
+        });
+    });
+  }
+
+  // —— 全局 lightbox：点击 .diagram img 或内联 svg 弹出 ——
+  function setupLightbox() {
+    if (document.querySelector('#diagram-lightbox')) return;
+    const lb = document.createElement('div');
+    lb.id = 'diagram-lightbox';
+    lb.setAttribute('role', 'dialog');
+    lb.setAttribute('aria-modal', 'true');
+    lb.setAttribute('aria-label', '放大查看图片');
+    lb.innerHTML = `
+      <div class="lb-backdrop"></div>
+      <img class="lb-img" alt="" />
+      <button class="lb-close" aria-label="关闭">×</button>
+    `;
+    document.body.appendChild(lb);
+
+    const backdrop = lb.querySelector('.lb-backdrop') as HTMLElement;
+    const img = lb.querySelector('.lb-img') as HTMLImageElement;
+    const closeBtn = lb.querySelector('.lb-close') as HTMLButtonElement;
+    let lastFocused: HTMLElement | null = null;
+
+    const open = (src: string, trigger?: HTMLElement) => {
+      img.src = src;
+      lb.classList.add('is-open');
+      document.body.style.overflow = 'hidden';
+      lastFocused = trigger || (document.activeElement as HTMLElement);
+      closeBtn.focus();
+    };
+    const close = () => {
+      lb.classList.remove('is-open');
+      document.body.style.overflow = '';
+      if (lastFocused) lastFocused.focus();
+    };
+
+    // 点击 .diagram img 或内联 svg 触发（内联 svg 内的子元素点击也冒泡到这里）
+    document.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      // 1) 直接点击 .diagram img
+      if (t.matches('.diagram img')) {
+        open((t as HTMLImageElement).currentSrc || (t as HTMLImageElement).src, t);
+        return;
+      }
+      // 2) 点击内联 svg（或其后代）—— 找到最近的 figure.diagram，取 svg data-src
+      const figure = t.closest('figure.diagram');
+      if (figure) {
+        const svg = figure.querySelector('svg[data-src]');
+        if (svg) {
+          // 但若点击的是带 [data-anchor] 的交互节点，不触发 lightbox（让 S2 处理）
+          if (t.closest('[data-anchor]')) return;
+          open(svg.getAttribute('data-src') || '', t);
+        }
+      }
+    });
+    backdrop.addEventListener('click', close);
+    closeBtn.addEventListener('click', close);
+    // ESC 关闭 + 焦点循环（简化的 focus trap）
+    document.addEventListener('keydown', (e) => {
+      if (!lb.classList.contains('is-open')) return;
+      if (e.key === 'Escape') { close(); return; }
+      if (e.key === 'Tab') {
+        // 单按钮 trap：始终聚焦到关闭键
+        e.preventDefault();
+        closeBtn.focus();
+      }
+    });
+    // 滚轮缩放
+    let scale = 1;
+    img.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      scale = Math.min(3, Math.max(1, scale + (e.deltaY < 0 ? 0.1 : -0.1)));
+      img.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    });
+    lb.addEventListener('transitionend', () => {
+      if (!lb.classList.contains('is-open')) {
+        scale = 1;
+        img.style.transform = '';
+      }
+    });
+  }
+
+  // 初始化 + Astro 视图转换后重新执行
+  inlineSvgDiagrams();
+  setupLightbox();
+  document.addEventListener('astro:page-load', () => {
+    inlineSvgDiagrams();
+    setupLightbox();
+  });
+</script>
