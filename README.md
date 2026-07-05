@@ -13,7 +13,7 @@
 | 🌐 在线电子书 | https://dg-ai-notes.pages.dev | PC 端沉浸式阅读（建议） |
 | 📖 Markdown (TS) | [pi-agent/docs/typescript/](./pi-agent/docs/typescript/) | 边读边问 AI、对照源码 |
 | 🐍 Markdown (Python) | [pi-agent/docs/python/](./pi-agent/docs/python/) | Python 读者 |
-| 📥 PDF 下载 | 见 [Releases](../../releases) | 离线阅读 / 打印 |
+| 📥 PDF 下载 | [v1.0 Release](../../releases/tag/v1.0)（TS + Python 双版本） | 离线阅读 / 打印 |
 | 🧪 Notebook | [pi-agent/notebooks/agent-loop.ipynb](./pi-agent/notebooks/agent-loop.ipynb) | Agent Loop 实验场 |
 
 **覆盖主题**（共 10 章）：
