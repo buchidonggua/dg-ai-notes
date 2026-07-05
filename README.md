@@ -6,7 +6,7 @@
 
 ### [Pi-Agent 深度教程](./pi-agent/) 🚧
 
-13 章拆解 [pi-agent](https://github.com/earendil-works/pi) SDK 的源码设计与实现，提供 **4 种阅读方式**：
+10 章拆解 [pi-agent](https://github.com/earendil-works/pi) SDK 的源码设计与实现，提供 **4 种阅读方式**：
 
 | 方式 | 链接 | 适合场景 |
 |------|------|----------|
@@ -29,14 +29,6 @@ ch06 消息系统 → ch07 事件驱动 → ch08 上下文工程 → ch09 上下
 ## 🗺️ 内容地图
 
 详见 [Pi-Agent 教程 README](./pi-agent/README.md)。
-
-## 🛣️ 未来计划
-
-- [ ] Claude Code 工作流笔记
-- [ ] 其他 AI Agent 框架对比（Cursor、Cline、Aider 等）
-- [ ] ...
-
-> 仓库定位：个人学习笔记总库，聚焦 AI Agent 生态。当前以 pi-agent 教程作为首发内容。
 
 ## 🤝 贡献
 

@@ -1,6 +1,6 @@
 # Pi-Agent 深度教程
 
-> 13 章拆解 [pi-agent](https://github.com/earendil-works/pi) SDK 的源码设计与实现
+> 10 章拆解 [pi-agent](https://github.com/earendil-works/pi) SDK 的源码设计与实现
 
 ## 📚 4 种阅读方式
 
