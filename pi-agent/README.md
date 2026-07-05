@@ -2,15 +2,15 @@
 
 > 10 章拆解 [pi-agent](https://github.com/earendil-works/pi) SDK 的源码设计与实现
 
-## 📚 4 种阅读方式
+## 📚 三种阅读方式
 
-| 方式 | 路径 / 链接 | 适合场景 |
-|------|------------|----------|
-| 🌐 在线电子书 | https://dg-ai-notes.pages.dev | PC 端沉浸式阅读（推荐） |
-| 📖 Markdown (TS) | [docs/typescript/](./docs/typescript/) | 边读边问 AI、对照源码 |
-| 🐍 Markdown (Python) | [docs/python/](./docs/python/) | Python 读者 |
-| 📥 PDF | GitHub Releases 页 | 离线阅读 / 打印 |
-| 🧪 Notebook | [notebooks/agent-loop.ipynb](./notebooks/agent-loop.ipynb) | Agent Loop 实验场 |
+| 方式 | 入口 | 适合场景 |
+|------|------|----------|
+| 🌐 **Web 在线版**（推荐） | https://dg-ai-notes.pages.dev | PC 端沉浸式阅读，三栏布局 + 配图联动 |
+| 📥 **Markdown 下载版** | [docs/typescript/](./docs/typescript/) · [docs/python/](./docs/python/) | 下载到本地，配合 AI 边读边问、对照源码 |
+| 📕 **PDF 版** | [GitHub Releases](https://github.com/buchidonggua/dg-ai-notes/releases) | 离线阅读、打印、长期存档 |
+
+> 🧪 **补充材料**：[notebooks/agent-loop.ipynb](./notebooks/agent-loop.ipynb) 是第 3 章 Agent Loop 的可执行实验场，可以单步运行、改参数、观察 loop 状态。
 
 > 本教程基于 Pi **v0.80.2** 编写。源码链接指向 [earendil-works/pi](https://github.com/earendil-works/pi) main 分支，可能与 v0.80.2 有微小差异。
 
