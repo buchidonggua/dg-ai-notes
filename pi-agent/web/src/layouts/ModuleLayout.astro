@@ -11,6 +11,7 @@ import LanguageSwitcher from '../components/LanguageSwitcher.astro';
 import ChapterFooter from '../components/chapter/ChapterFooter.astro';
 import CodeBlock from '../components/CodeBlock.astro';
 import DiagramLightbox from '../components/DiagramLightbox.astro';
+import ImmersiveMode from '../components/ImmersiveMode.astro';
 import type { ModuleEntry } from '../utils/collection';
 import { getModuleStats, getCounterpartUrl } from '../utils/collection';
 
@@ -82,6 +83,9 @@ const tsCounterpartUrl = isPython ? getCounterpartUrl(entry) : null;
 
   <!-- 全局 Lightbox + SVG 内联注入（挂载一次，所有 diagram 共享） -->
   <DiagramLightbox />
+
+  <!-- 沉浸模式：遮罩 + toast + 运行时脚本 -->
+  <ImmersiveMode />
 </BaseLayout>
 
 <style>
@@ -96,8 +100,8 @@ const tsCounterpartUrl = isPython ? getCounterpartUrl(entry) : null;
   }
 
   .module-main {
-    width: var(--read-width);
-    max-width: 100%;
+    width: 100%;
+    max-width: var(--read-width);
     margin-inline: auto;
   }
 
@@ -209,5 +213,102 @@ const tsCounterpartUrl = isPython ? getCounterpartUrl(entry) : null;
   }
   :global([data-anchor].is-active) {
     filter: drop-shadow(0 0 var(--hl-glow) var(--accent));
+  }
+
+  /* ============================================================
+     沉浸式阅读模式（body.immersive-mode，仅 ≥1280px）
+     设计：保持三栏 grid 结构不动，沉浸模式下：
+       - 右栏列宽 → 0，内容淡出
+       - 正文加宽到 --immersive-read-width
+       - 整页 max-width 放宽到 --immersive-page-max
+     所有变化用 CSS transition 平滑过渡，进入/退出都有动画。
+     ============================================================ */
+  @media (min-width: 1280px) {
+    /* 基础（非沉浸）：所有相关属性都加 transition，确保退出沉浸时也能平滑回到原态 */
+    .page-grid {
+      transition: grid-template-columns var(--dur-base) var(--ease),
+                  max-width var(--dur-base) var(--ease),
+                  column-gap var(--dur-base) var(--ease),
+                  padding-inline var(--dur-base) var(--ease);
+    }
+    .toc-left, .outline-right {
+      transition: opacity var(--dur-base) var(--ease),
+                  transform var(--dur-base) var(--ease);
+    }
+    .module-main {
+      transition: max-width var(--dur-base) var(--ease);
+    }
+    .prose, .prose pre {
+      transition: max-width var(--dur-base) var(--ease),
+                  padding-inline var(--dur-base) var(--ease);
+    }
+
+    /* 沉浸激活态：两侧栏列宽都收到 0，正文列独占 */
+    body.immersive-mode .page-grid {
+      grid-template-columns: 0px minmax(0, 1fr) 0px;
+      column-gap: var(--col-gap);
+      max-width: var(--immersive-page-max);
+      padding-inline: var(--immersive-pad-x);
+    }
+
+    /* 左栏：平滑淡出 + 向左轻移 24px */
+    body.immersive-mode .toc-left {
+      opacity: 0;
+      transform: translateX(-24px);
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    /* 右栏：列宽已收到 0，内容也淡出 + 向右轻移 24px */
+    body.immersive-mode .outline-right {
+      opacity: 0;
+      transform: translateX(24px);
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    /* 正文加宽：只动 max-width，width: 100% 让它始终填满 grid cell */
+    body.immersive-mode .module-main {
+      max-width: var(--immersive-read-width);
+    }
+
+    /* 关键修复：max-width 用具体 px 值（不能用 none，否则不能 transition）。
+       这样 .prose 的 max-width 和 .module-main 的 max-width 同源同步过渡。 */
+    body.immersive-mode .prose {
+      max-width: var(--immersive-read-width);
+    }
+    body.immersive-mode .prose pre {
+      max-width: var(--immersive-read-width);
+    }
+
+    /* 沉浸模式下章节 header 收紧一些，把空间还给正文 */
+    body.immersive-mode .module-header {
+      margin-bottom: var(--space-8);
+      padding-bottom: var(--space-5);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    /* 沉浸模式下：正文段落稍稍放大行距，给眼睛呼吸空间 */
+    body.immersive-mode .prose p,
+    body.immersive-mode .prose li {
+      line-height: calc(var(--lh-prose) + 0.06);
+    }
+
+    /* 沉浸模式下：正文区两侧留出更多呼吸空间 */
+    body.immersive-mode .module-main > .prose {
+      padding-inline: var(--space-4);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .page-grid,
+    .toc-left,
+    .outline-right,
+    .module-main,
+    .module-header,
+    .prose,
+    .prose pre {
+      transition-duration: 0.01ms !important;
+    }
   }
 </style>

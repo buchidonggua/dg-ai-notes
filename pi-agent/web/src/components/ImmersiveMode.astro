@@ -1,0 +1,135 @@
+---
+// src/components/ImmersiveMode.astro
+// 沉浸式阅读模式：切换 body.immersive-mode，触发 CSS 过渡。
+//   - 右栏 outline 列宽 → 0，内容淡出
+//   - 正文加宽到 --immersive-read-width
+//   - 整页 max-width 放宽到 --immersive-page-max
+//   仅 ≥1280px 生效；小屏拒绝启用并提示。
+// 所有动画由 ModuleLayout <style> 里的 transition 驱动。
+---
+
+<div class="immersive-toast" role="status" aria-live="polite" hidden></div>
+
+<script is:inline>
+  (function () {
+    const IMMERSIVE_KEY = 'pi-agent-book:immersive';
+    const HINT_SEEN_KEY = 'pi-agent-book:immersive-hint-seen';
+    const MQ_DESKTOP = window.matchMedia('(min-width: 1280px)');
+
+    const body = document.body;
+    const toast = document.querySelector('.immersive-toast');
+
+    function isDesktop() { return MQ_DESKTOP.matches; }
+
+    function setImmersive(on, opts) {
+      opts = opts || {};
+      if (on && !isDesktop()) {
+        showToast('沉浸模式仅在 ≥1280px 宽屏下可用');
+        return;
+      }
+      const isOn = body.classList.contains('immersive-mode');
+      if (isOn === on) return;
+      body.classList.toggle('immersive-mode', on);
+      try { localStorage.setItem(IMMERSIVE_KEY, String(on)); } catch (e) {}
+
+      document.querySelectorAll('[data-immersive-toggle]')
+        .forEach(b => b.setAttribute('aria-pressed', String(on)));
+
+      if (on && !opts.silent) maybeShowHint();
+
+      window.dispatchEvent(new CustomEvent('immersive:change', { detail: { on } }));
+    }
+
+    let toastTimer = null;
+    function showToast(msg, ms) {
+      if (!toast) return;
+      ms = ms || 3000;
+      toast.textContent = msg;
+      toast.hidden = false;
+      requestAnimationFrame(() => toast.classList.add('is-visible'));
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('is-visible');
+        setTimeout(() => { toast.hidden = true; }, 240);
+      }, ms);
+    }
+
+    function maybeShowHint() {
+      try {
+        if (localStorage.getItem(HINT_SEEN_KEY) === 'true') return;
+      } catch (e) {}
+      showToast('沉浸模式 · 按 F 退出', 3000);
+      try { localStorage.setItem(HINT_SEEN_KEY, 'true'); } catch (e) {}
+    }
+
+    // 快捷键
+    document.addEventListener('keydown', (e) => {
+      const t = e.target;
+      const tag = t && t.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (t && t.isContentEditable)) return;
+      if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        setImmersive(!body.classList.contains('immersive-mode'));
+        return;
+      }
+      if (e.key === 'Escape' && body.classList.contains('immersive-mode')) {
+        setImmersive(false);
+      }
+    });
+
+    // 顶栏按钮
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('[data-immersive-toggle]')) {
+        e.preventDefault();
+        setImmersive(!body.classList.contains('immersive-mode'));
+      }
+    });
+
+    // 初始恢复
+    let initialWanted = false;
+    try { initialWanted = localStorage.getItem(IMMERSIVE_KEY) === 'true'; } catch (e) {}
+    if (initialWanted && isDesktop()) {
+      requestAnimationFrame(() => setImmersive(true, { silent: true }));
+    }
+
+    // 窗口缩小自动退出
+    MQ_DESKTOP.addEventListener('change', (ev) => {
+      if (!ev.matches && body.classList.contains('immersive-mode')) {
+        setImmersive(false);
+        showToast('屏幕变窄，已退出沉浸模式');
+      }
+    });
+  })();
+</script>
+
+<style is:global>
+  /* Toast：首次进入提示 */
+  .immersive-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 32px;
+    transform: translateX(-50%) translateY(16px);
+    padding: var(--space-3) var(--space-5);
+    background: var(--ink-strong);
+    color: var(--paper);
+    font-family: var(--font-mono);
+    font-size: var(--fs-small);
+    letter-spacing: 0.04em;
+    border-radius: 9999px;
+    box-shadow: var(--shadow-3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-base) var(--ease),
+                transform var(--dur-base) var(--ease);
+    z-index: 200;
+    max-width: 90vw;
+  }
+  .immersive-toast.is-visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .immersive-toast { transition-duration: 0.01ms; }
+  }
+</style>

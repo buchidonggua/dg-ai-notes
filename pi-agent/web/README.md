@@ -51,8 +51,10 @@ npm install && npm run dev
 |------|------|
 | 顶栏 **TS / Python** 切换器 | 同一章在两种语言间跳转，偏好记到 localStorage，下次自动应用 |
 | 顶栏 **☀ / 🌙** 按钮 | 浅色/深色/跟随系统三态循环，`T` 键快捷键 |
+| 顶栏 **◧ 沉浸式阅读** 按钮 / **`F`** 键 | 进入沉浸模式：右栏大纲淡出、正文加宽到 1080px，留出充分阅读空间。进入/退出都有平滑动画。仅 ≥1280px 可用，偏好记 localStorage |
+| 沉浸模式下 **`Esc`** 键 | 退出沉浸模式 |
 | 左侧 TOC | 章节层级导航（hover 显示模块号 M01-M10） |
-| 右侧 On-This-Page | 当前页面的二级/三级标题大纲，滚动时高亮当前节 |
+| 右侧 On-This-Page | 当前页面的二级/三级标题大纲，滚动时高亮当前节（沉浸模式下淡出隐藏） |
 | 点击 SVG 图内节点 | 自动跳转到对应代码块并高亮（Ch3 Agent Loop 已布好锚点） |
 | 点击图片 | 放大查看，`Esc` 或滚轮缩放退出 |
 | 底部 **← 上章 / 下章 →** | 按 displayOrder 顺序连续阅读（ch01 → ch10 一条主线） |
@@ -72,6 +74,7 @@ ch06 消息系统    →  ch07 事件驱动   →  ch08 上下文工程  →  ch
 | 能力 | 说明 |
 |------|------|
 | **三栏阅读布局** | 左 TOC（240px）/ 正文（720px）/ 右大纲（240px），1279px 以下隐藏右栏，767px 以下转汉堡菜单 |
+| **沉浸式阅读模式** | 顶栏 ◧ 沉浸式阅读 按钮或 `F` 键切换。沉浸模式下：右栏大纲列宽收到 0 并淡出、正文加宽到 1080px、page-max 放宽到 1280px。进入/退出所有属性都用 CSS transition 同步动画（grid-template-columns / max-width / opacity / transform）。仅 ≥1280px 生效，窗口缩小自动退出。支持 `prefers-reduced-motion` |
 | **TS/Python 双版本** | 每章并排两个 mdx：`chXX-xxx.mdx`（TS 版）+ `chXX-xxx.python.mdx`（Python 改写版）。URL 各自独立（`/modules/ch03-agent-loop` vs `/modules/ch03-agent-loop.python`），顶栏 LanguageSwitcher 一键切换，偏好记到 localStorage |
 | **代码块增强** | Shiki 语法高亮 + 语言标签 + 一键复制 + 30 行以上自动折叠 |
 | **SVG 图表联动** | 点击图内节点自动滚动到对应代码块（S2 双向联动）；目前已在 **Ch5 工具系统五步管道图** 实现，其他章节待扩展（Phase 4-C）。点击图片放大查看（lightbox 支持 Esc/滚轮缩放） |

@@ -65,6 +65,12 @@
   --col-gap:     32px;
   --pad-x:       16px;
 
+  /* 沉浸模式几何（默认与普通模式一致，body.immersive-mode 下覆盖）*/
+  --immersive-read-width: 1080px;
+  --immersive-page-max:   1280px;
+  --immersive-pad-x:      40px;
+  --immersive-drawer-width: 320px;
+
   /* 结构性尺寸 */
   --topbar-h:        56px;
   --border-w:        1px;

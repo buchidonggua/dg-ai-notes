@@ -11,6 +11,7 @@ export default defineConfig({
     react(),
   ],
   site: 'https://dg-ai-notes.pages.dev',
+  devToolbar: { enabled: false },
   markdown: {
     shikiConfig: {
       theme: 'one-dark-pro',

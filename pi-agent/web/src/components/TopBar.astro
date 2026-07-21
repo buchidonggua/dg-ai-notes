@@ -11,10 +11,26 @@ const title = entry
 ---
 
 <header class="topbar">
-  <button class="hamburger" aria-label="打开目录" aria-expanded="false">☰</button>
-  <a href="/" class="brand">Pi Agent <span class="brand-accent">·</span> Book</a>
+  <div class="left-cluster">
+    <button class="hamburger" aria-label="打开目录" aria-expanded="false">☰</button>
+    <a href="/" class="brand">Pi Agent <span class="brand-accent">·</span> Book</a>
+  </div>
   <nav class="crumb" aria-label="breadcrumb">{title}</nav>
   <div class="actions">
+    <button
+      class="immersive-toggle"
+      type="button"
+      data-immersive-toggle
+      aria-pressed="false"
+      aria-label="切换沉浸式阅读"
+      title="沉浸式阅读 (F)"
+    >
+      <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M3 4.5h5v11H3zM12 4.5h5v11h-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M7.5 10h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1.5 2"/>
+      </svg>
+      <span class="immersive-toggle-label">沉浸式阅读</span>
+    </button>
     <ThemeToggle />
   </div>
 </header>
@@ -55,6 +71,13 @@ const title = entry
     background: var(--topbar-bg);
   }
 
+  .left-cluster {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
   .brand {
     font-family: var(--font-display);
     font-size: 22px;
@@ -72,12 +95,51 @@ const title = entry
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    flex: 1 1 auto;
+    padding: 0 var(--space-4);
   }
 
   .actions {
     display: flex;
     gap: var(--space-3);
     align-items: center;
+  }
+
+  /* 沉浸式阅读按钮：图标 + 中文文字 */
+  .immersive-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 32px;
+    padding: 0 var(--space-3);
+    background: transparent;
+    border: 1px solid var(--rule);
+    border-radius: 9999px;
+    color: var(--soft);
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease),
+                color var(--dur-fast) var(--ease),
+                border-color var(--dur-fast) var(--ease);
+  }
+  .immersive-toggle:hover {
+    background: var(--paper-sunken);
+    color: var(--ink);
+    border-color: var(--soft);
+  }
+  .immersive-toggle:focus-visible {
+    outline: var(--outline-w) solid var(--accent);
+    outline-offset: var(--outline-offset);
+  }
+  .immersive-toggle-label { letter-spacing: 0.02em; }
+
+  /* 沉浸按钮激活态 */
+  .immersive-toggle[aria-pressed="true"] {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: var(--accent);
   }
 
   .hamburger { display: none; }
@@ -94,5 +156,8 @@ const title = entry
       margin-right: var(--space-3);
       line-height: 1;
     }
+    /* 小屏隐藏沉浸按钮文字，只保留图标，避免挤占 */
+    .immersive-toggle-label { display: none; }
+    .immersive-toggle { padding: 0; width: 32px; justify-content: center; }
   }
 </style>
