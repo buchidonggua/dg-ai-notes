@@ -86,6 +86,30 @@ ch06 消息系统    →  ch07 事件驱动   →  ch08 上下文工程  →  ch
 
 ---
 
+## 👋 关于作者
+
+大家好，我是**冬瓜**，一个热衷于拆解 AI 工程的博主
+
+如果你觉得内容有帮助，欢迎来我的社交账号找我玩，一起交流 AI / Agent / LLM 的工程实践——
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="./assets/donghua-douyin-qr.png" alt="冬瓜的抖音二维码" width="220" />
+      <br /><sub><b>抖音 · 冬瓜</b></sub>
+      <br /><sub>AI 技术科普 · 源码拆解</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="./assets/donghua-bilibili-qr.jpg" alt="冬瓜的 B 站二维码" width="220" />
+      <br /><sub><b>B 站 · 冬瓜</b></sub>
+      <br /><sub>长视频教程 · 直播 coding</sub>
+    </td>
+  </tr>
+</table>
+
+
+---
+
 ## 🙏 Acknowledgments
 
 - [Pi-Agent](https://github.com/earendil-works/pi) 官方团队 —— 没有他们的开源，就没有这本笔记
