@@ -1,5 +1,7 @@
 # 📚 dg-ai-notes
 
+[简体中文](README.md) | [English](README.en.md)
+
 > 冬瓜的 AI 学习笔记 · 当前重点：[Pi-Agent](https://pi.dev) SDK 深度教程
 
 ---
