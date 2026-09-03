@@ -8,7 +8,7 @@
 
 跑这段代码之前，确保：
 
-1. **安装 SDK**：`npm install @earendil-works/pi-coding-agent@0.83.0`
+1. **安装 SDK**：`npm install @earendil-works/pi-coding-agent@latest`
 2. **配好 API Key**：见 [场景 B01](B01-auth-config.md)。
    - ⚠️ **注意**：缺 key 时 `createAgentSession()` **不会 throw**——它会返回一个带 `modelFallbackMessage` 警告的 session，真正的报错（`No model selected.`）要等到 `session.prompt()` 时才抛出。这是新手最容易误解的一点：**"创建成功"不等于"能跑通"**。
 3. **有可用模型**：见 [场景 A02](A02-model-selection.md)。未显式传 `model` 时，SDK 按以下顺序找（`findInitialModel`）：① settings 默认模型（已配 key 才算数）→ ② `defaultModelPerProvider`（已知 provider 的默认模型优先匹配）→ ③ 第一个可用模型。三者都失败时，`session.model` 为 `undefined`，`prompt()` 会 throw 多行错误 `No model selected.\n\nUse /login to log into a provider...`。

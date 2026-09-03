@@ -15,7 +15,7 @@
 
 ## 前置条件
 
-1. **安装 SDK**：`npm install @earendil-works/pi-coding-agent@0.83.0`
+1. **安装 SDK**：`npm install @earendil-works/pi-coding-agent@latest`
 2. **配好目标模型的 API Key**：见 [场景 B01](B01-auth-config.md)
    - ⚠️ **注意**：缺 key 时 `createAgentSession()` **不会 throw**——它会返回一个带 `modelFallbackMessage` 警告的 session，真正的报错（`No model selected.` / `No API key found for <provider>.`）要等到 `session.prompt()` 时才抛出。详见 [A01「延迟报错机制」](A01-minimal-startup.md)
 3. **确认模型 ID 存在**：内置模型清单见 pi-ai 包的 `providers/<provider>.models.ts`，或用 [B03](B03-available-models.md) 的代码列出。

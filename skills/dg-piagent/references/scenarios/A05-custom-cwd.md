@@ -15,7 +15,7 @@
 
 ## 前置条件
 
-1. **安装 SDK**：`npm install @earendil-works/pi-coding-agent@0.83.0`
+1. **安装 SDK**：`npm install @earendil-works/pi-coding-agent@latest`
 2. **确认目标目录存在**：SDK 不会创建目录，`bash` 工具执行时若 cwd 不存在会 throw `Working directory does not exist: <path>`（tools/bash.ts `fsAccess(cwd)` 检查后 throw）
 3. **使用绝对路径**（推荐）：传相对路径会相对**当前 `process.cwd()`** 解析（`resolvePath` 默认 baseDir 是 `process.cwd()`，见 paths.ts），容易意外指错位置
 

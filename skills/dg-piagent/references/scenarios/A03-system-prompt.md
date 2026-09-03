@@ -16,7 +16,7 @@
 
 ## 前置条件
 
-1. **安装 SDK**：`npm install @earendil-works/pi-coding-agent@0.83.0`
+1. **安装 SDK**：`npm install @earendil-works/pi-coding-agent@latest`
 2. **确认 cwd 和 agentDir**：
    - `cwd`：项目根目录，决定从哪里开始向上查找 `AGENTS.md`/`CLAUDE.md`
    - `agentDir`：pi 全局配置目录，默认 `~/.pi/agent/`，可用 `getAgentDir()` 获取（受 `PI_CODING_AGENT_DIR` 环境变量覆盖，见 config.ts）
