@@ -27,7 +27,7 @@
 | `createAgentSession({ customTools, tools, noTools, excludeTools })` | 注册 + 白名单控制 | [sdk_doc/01-create-agent-session.md](../sdk_doc/01-create-agent-session.md) |
 | `createReadTool` / `createBashTool` 等 | 内置工具的工厂函数（自定义 cwd 或包装） | [sdk_doc/06-tools.md](../sdk_doc/06-tools.md) |
 
-> ⚠️ **import 来源**：TypeBox 从 `typebox` 包导入（**不是** `@sinclair/typebox`，当前 v0.83.0 统一使用 `typebox`）。
+> ⚠️ **import 来源**：TypeBox 从 `typebox` 包导入（**不是** `@sinclair/typebox`，截至核对版本 v0.84.4 统一使用 `typebox`，版本协议见 SKILL.md）。
 > ```ts
 > import { Type } from "typebox";                              // ✅ 正确
 > import { Type } from "@sinclair/typebox";                    // ❌ 旧包名，已废弃

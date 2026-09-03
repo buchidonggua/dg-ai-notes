@@ -16,7 +16,7 @@
 
 ## 前置条件
 
-1. **安装 SDK**：`npm install @earendil-works/pi-coding-agent@0.83.0`
+1. **安装 SDK**：`npm install @earendil-works/pi-coding-agent@latest`
 2. **扩展文件语法**：独立 `.ts` / `.js` 文件必须 `export default` 一个 `ExtensionFactory`：
    ```ts
    // my-extension.ts

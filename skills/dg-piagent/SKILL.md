@@ -13,28 +13,19 @@ description: |
 
 # pi-agent SDK 开发指南
 
-> ⚠️ **版本基线**: 本 skill 的 API 描述已对齐到 **pi-coding-agent v0.83.0**。
+> ⚠️ **版本基线（动态）**: 本 skill 的 API 描述最近一次人工核对到 **pi-coding-agent v0.84.4**。基线不写死——安装前先查 latest，以查到的最新版为准（见下方版本协议）。
 >
 > **遇 pi-ai import 失败时**，先查 `node_modules/@earendil-works/pi-ai/dist/compat.d.ts` 的 `export *` 列表，确认符号归属哪个入口。
 
 ## 版本协议 ⭐
 
-本 skill 核对到顶部基线版本（当前 **v0.83.0**）。涉及安装/升级 pi-agent 时遵循三步：
+**基线动态**：不写死版本号，每次引导安装前先跑 `npm view @earendil-works/pi-coding-agent version` 查最新，以查到的版本为本次基线。顶部标注的核对版本只是「API 描述最近核对到的版本」。两步：
 
-1. **默认对齐**：引导安装一律用基线版本 `npm install @earendil-works/pi-coding-agent@0.83.0`，**不装 `latest`**——skill 的 API 描述精确核对到基线版本，装 latest 会立即漂移。场景文档里的安装命令同样以基线版本为准。
+1. **查最新、装最新**：跑 `npm view @earendil-works/pi-coding-agent version` 拿 latest，安装该版本（需要可复现时用精确版本号 `@X.Y.Z`，日常可直接 `@latest`）。场景文档里的安装命令一律指最新版。若查到的版本 ≠ 顶部核对版本，走第 2 步核对差异。
 
-2. **升级前评估**：当任务涉及安装/升级（或用户问版本）时，先跑 `npm view @earendil-works/pi-coding-agent version` 拿 latest 与基线对比。若不同，联网查该版本 CHANGELOG/release notes，从 SDK 二次开发角度评估（新功能 / 破坏性变更），给用户简短建议，由用户决定是否升级。日常开发（项目已装好）不触发。
+2. **差异核对**：查 GitHub `github.com/earendil-works/pi` 的 `packages/coding-agent/CHANGELOG.md`（或 Releases），对比核对版本→最新版之间的变更（尤其 Breaking Changes），从 SDK 二次开发角度给用户简短提示。若发现 skill 描述与新 API 有实质出入（类型改名、签名变更、新增重要能力），按 [skill-maintenance.md](references/skill-maintenance.md) 流程产出更新清单，报用户确认后再改 skill，并把顶部核对版本同步为新版。日常开发（项目已装好、不涉及安装）不触发。
 
-3. **升级即更新 skill**：若用户同意升到 X.Y.Z，安装后按 [skill-maintenance.md](references/skill-maintenance.md) 流程，对照新版 `dist/**/*.d.ts` + CHANGELOG 审查 skill 差异，产出更新清单，报用户确认后再改，并同步更新顶部基线版本号。
-
-**变更查阅渠道**（第 2/3 步执行依据）：
-
-| 渠道 | 路径/命令 | 适用阶段 |
-|------|----------|---------|
-| ① node_modules CHANGELOG | `<proj>/node_modules/@earendil-works/pi-coding-agent/CHANGELOG.md`（标准 Keep-a-Changelog，按 `## [版本号]` 分节，含 Breaking Changes）| **升级后**（第3步）|
-| ② GitHub | `github.com/earendil-works/pi` 的 `packages/coding-agent/CHANGELOG.md` 或 Releases | **升级前**（第2步，需联网）|
-
-> 时序关键：升级前 node_modules 仍是旧版，**渠道①看不到新版内容**，第 2 步必须用②（GitHub）。
+> 时序关键：核对差异发生在安装前，node_modules 可能还是旧版或不存在，此时只能用 GitHub CHANGELOG；装好新版后可再用 `<proj>/node_modules/@earendil-works/pi-coding-agent/CHANGELOG.md`（标准 Keep-a-Changelog，按 `## [版本号]` 分节，含 Breaking Changes）与 `dist/**/*.d.ts` 做精确核对。
 
 ## Overview
 
@@ -74,8 +65,10 @@ createAgentSession()  ← 组装入口(Provider + 工具 + 资源)
 ## 快速开始
 
 ```bash
-npm install @earendil-works/pi-coding-agent@0.83.0
+npm install @earendil-works/pi-coding-agent@latest
 ```
+
+> 安装前先 `npm view @earendil-works/pi-coding-agent version` 查最新版为基线，见[版本协议](#版本协议️)
 
 最简示例:
 

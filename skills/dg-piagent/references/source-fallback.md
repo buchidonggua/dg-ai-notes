@@ -87,7 +87,7 @@ grep -rln "<主题>" node_modules/@earendil-works/pi-coding-agent/docs/
 
 如果项目根 `node_modules/@earendil-works/` 不存在：
 
-1. 提示用户 `npm install @earendil-works/pi-coding-agent@0.83.0`
+1. 提示用户 `npm install @earendil-works/pi-coding-agent@latest`
 2. 或退到 GitHub 远程：`github.com/earendil-works/pi` 的 `packages/{coding-agent,agent,ai}/src/`（注意版本可能与项目实际不一致）
 
 ---
