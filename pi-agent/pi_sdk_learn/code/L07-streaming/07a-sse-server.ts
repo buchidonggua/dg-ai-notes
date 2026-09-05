@@ -153,7 +153,7 @@ app.post("/chat", async (req, res) => {
 
   // ③ 客户端断开（关页面、点「停止」中断 fetch）→ 中断 Agent + 清理订阅
   let settled = false;
-  req.on("close", () => {
+  res.on("close", () => {
     off();
     if (!settled) {
       try {
