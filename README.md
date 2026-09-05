@@ -70,6 +70,61 @@ skill 里还沉淀了作者踩过的坑与最佳实践（比如工具报错时�
 
 ---
 
+## 📁 项目结构
+
+```
+dg-ai-notes/
+├── pi-agent/                          # 核心教程目录
+│   ├── pi_source_dive/                # 源码精读系列
+│   │   ├── typescript/                #   TypeScript 版（10 章）
+│   │   └── python/                    #   Python 版（10 章）
+│   ├── pi_sdk_learn/                  # 实战案例系列
+│   │   ├── docs/                      #   教程文档（7 章）
+│   │   └── code/                      #   配套代码（L01-L07）
+│   ├── notebooks/                     # Jupyter 实验场
+│   │   └── agent-loop.ipynb           #   Agent Loop 从零搭建
+│   ├── web/                           # 在线电子书（Astro + React）
+│   └── README.md                      # 教程总目录与阅读路径
+├── skills/                            # AI Agent Skills
+│   └── dg-piagent/                    #   Pi-Agent SDK 开发助手
+│       ├── SKILL.md                   #     核心指南（96 行）
+│       └── references/                #     场景文件 + API 文档
+│           ├── scenarios/             #       62 个场景文件
+│           └── sdk_doc/               #       22 个 API 参考
+├── assets/                            # 图片资源
+├── CONTRIBUTING.md                    # 贡献指南
+├── LICENSE                            # MIT + CC-BY-SA-4.0
+└── README.md                          # 你在这里
+```
+
+---
+
+## 📁 项目结构
+
+```
+dg-ai-notes/
+├── pi-agent/                          # 核心教程目录
+│   ├── pi_source_dive/                # 源码精读系列
+│   │   ├── typescript/                #   TypeScript 版（10 章）
+│   │   └── python/                    #   Python 版（10 章）
+│   ├── pi_sdk_learn/                  # 实战案例系列
+│   │   ├── docs/                      #   教程文档（7 章）
+│   │   └── code/                      #   配套代码（L01-L07）
+│   ├── notebooks/                     # Jupyter 实验场
+│   ├── web/                           # 在线电子书（Astro + React）
+│   └── README.md                      # 教程总目录与阅读路径
+├── skills/                            # AI Agent Skills
+│   └── dg-piagent/                    #   Pi-Agent SDK 开发助手
+│       ├── SKILL.md                   #     核心指南
+│       └── references/                #     场景文件 + API 文档
+├── assets/                            # 图片资源
+├── CONTRIBUTING.md                    # 贡献指南
+├── LICENSE                            # MIT + CC-BY-SA-4.0
+└── README.md                          # 你在这里
+```
+
+---
+
 ## 🤝 贡献
 
 发现 typo / 内容错误？欢迎：
