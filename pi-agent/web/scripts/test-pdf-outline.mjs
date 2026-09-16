@@ -11,13 +11,29 @@ import {
   PDFName,
   PDFString,
 } from 'pdf-lib';
-import { mergeWithOutline } from './build-pdf.mjs';
+import { createBookParts, mergeWithOutline } from './build-pdf.mjs';
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-agent-pdf-outline-'));
 const tocSourcePath = path.join(tempDir, 'toc-source.pdf');
 const chapterSourcePath = path.join(tempDir, 'chapter-source.pdf');
 const outputPath = path.join(tempDir, 'merged.pdf');
 const expectedTitle = '第1章：概览';
+
+const configuredParts = createBookParts({
+  coverPdf: 'cover.pdf',
+  tocPdf: 'toc.pdf',
+  chapterPdfs: [],
+});
+assert.equal(
+  configuredParts[0].internalLinks?.['/modules/ch01-overview'],
+  expectedTitle,
+  '封面章节列表应转换为 PDF 内部链接',
+);
+assert.equal(
+  configuredParts[1].internalLinks?.['/modules/ch01-overview/python'],
+  expectedTitle,
+  'Python 目录页应转换为 PDF 内部链接',
+);
 
 try {
   const tocSource = await PDFDocument.create();

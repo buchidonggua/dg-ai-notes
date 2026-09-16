@@ -283,6 +283,20 @@ export async function mergeWithOutline(parts, outPath) {
   fs.writeFileSync(outPath, out);
 }
 
+export function createBookParts({ coverPdf, tocPdf, chapterPdfs }) {
+  const internalLinks = Object.fromEntries(
+    CHAPTERS.flatMap(ch => [
+      [`/modules/${ch.slug}`, ch.title],
+      [`/modules/${ch.slug}/python`, ch.title],
+    ]),
+  );
+  return [
+    { file: coverPdf, title: '封面', internalLinks },
+    { file: tocPdf, title: '目录', internalLinks },
+    ...chapterPdfs,
+  ];
+}
+
 // ============================================================
 // 主流程
 // ============================================================
@@ -345,20 +359,7 @@ async function main() {
     // 8. 合并 + 书签
     const finalPath = path.join(finalDir, `pi-agent-book-${variant}.pdf`);
     console.log(`\n→ 合并 + outline...`);
-    const parts = [
-      { file: coverPdf, title: '封面' },
-      {
-        file: tocPdf,
-        title: '目录',
-        internalLinks: Object.fromEntries(
-          CHAPTERS.map(ch => [
-            `/modules/${ch.slug}${isPython ? '/python' : ''}`,
-            ch.title,
-          ]),
-        ),
-      },
-      ...chapterPdfs,
-    ];
+    const parts = createBookParts({ coverPdf, tocPdf, chapterPdfs });
     await mergeWithOutline(parts, finalPath);
 
     const sizeKB = Math.round(fs.statSync(finalPath).size / 1024);
