@@ -175,7 +175,7 @@ function inferExpectedSvgCount(slug, variant) {
 // ============================================================
 // 合并 + 加 outline 书签
 // ============================================================
-async function mergeWithOutline(parts, outPath) {
+export async function mergeWithOutline(parts, outPath) {
   // parts: [{ file, title }]
   const merged = await PDFDocument.create();
 
@@ -200,7 +200,7 @@ async function mergeWithOutline(parts, outPath) {
 
   // outline 书签（用 pdf-lib 低级 API 手写 Outlines 字典）
   try {
-    const { PDFName, PDFNumber, PDFString, PDFArray, PDFNull } = await import('pdf-lib');
+    const { PDFName, PDFNumber, PDFHexString } = await import('pdf-lib');
     const context = merged.context;
 
     // 先注册所有 outline 节点（拿到 indirect ref）
@@ -209,11 +209,17 @@ async function mergeWithOutline(parts, outPath) {
     // 填充每个节点
     pageOffsets.forEach((po, i) => {
       const node = context.lookup(outlineRefs[i]);
-      node.set(PDFName.of('Title'), PDFString.of(po.title));
+      // PDFString writes a literal string using PDFDocEncoding. Chinese titles
+      // are not representable there, and their raw bytes can also introduce
+      // unescaped parentheses that make the outline invalid. PDFHexString
+      // emits a UTF-16BE string with a BOM, which PDF viewers can decode.
+      node.set(PDFName.of('Title'), PDFHexString.fromText(po.title));
       node.set(PDFName.of('Parent'), null);  // 占位，回填见下
       if (i > 0) node.set(PDFName.of('Prev'), outlineRefs[i - 1]);
       if (i < outlineRefs.length - 1) node.set(PDFName.of('Next'), outlineRefs[i + 1]);
-      node.set(PDFName.of('Dest'), PDFArray.withContext(context, [
+      // context.obj converts each array item into a PDF object. Calling
+      // PDFArray.withContext with a second array argument silently ignores it.
+      node.set(PDFName.of('Dest'), context.obj([
         merged.getPage(po.start).ref,
         PDFName.of('Fit'),
       ]));
@@ -335,7 +341,9 @@ async function main() {
   }
 }
 
-main().catch(err => {
-  console.error('✗ 未捕获错误:', err);
-  process.exit(1);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+  main().catch(err => {
+    console.error('✗ 未捕获错误:', err);
+    process.exit(1);
+  });
+}
