@@ -12,6 +12,7 @@
     "prebuild": "node scripts/check-counterpart.mjs",
     "check:sync": "node scripts/check-sync.mjs",
     "check:counterpart": "node scripts/check-counterpart.mjs",
+    "test:pdf-outline": "node scripts/test-pdf-outline.mjs",
     "build:pdf": "node scripts/build-pdf.mjs --variant=ts && node scripts/build-pdf.mjs --variant=python",
     "build:pdf:ts": "node scripts/build-pdf.mjs --variant=ts",
     "build:pdf:python": "node scripts/build-pdf.mjs --variant=python"
