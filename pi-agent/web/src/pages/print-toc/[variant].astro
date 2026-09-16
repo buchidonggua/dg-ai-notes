@@ -5,7 +5,7 @@
 //   /print-toc/python   → Python 版目录
 // 设计为 PDF 中使用，robots noindex；web 直接访问样式朴素。
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { getPublishedModules, groupByChapter } from '../../utils/collection';
+import { getPublishedModules, getVariantUrl, groupByChapter } from '../../utils/collection';
 
 export async function getStaticPaths() {
   return [
@@ -25,6 +25,7 @@ const rows = chapters.map(ch => {
     module: ch.module,
     title: entry?.data.title ?? '(未发布章节)',
     summary: entry?.data.summary ?? '',
+    href: entry ? getVariantUrl(entry) : null,
   };
 });
 
@@ -42,13 +43,13 @@ const today = new Date().toISOString().slice(0, 10);
 
     <div class="toc-list">
       {rows.map((r, i) => (
-        <div class="toc-chapter">
+        <a class="toc-chapter" href={r.href ?? '#'}>
           <span class="toc-num">{String(i + 1).padStart(2, '0')}</span>
           <div class="toc-text">
             <div class="toc-title">{r.title}</div>
             {r.summary && <div class="toc-summary">{r.summary}</div>}
           </div>
-        </div>
+        </a>
       ))}
     </div>
 
@@ -100,6 +101,8 @@ const today = new Date().toISOString().slice(0, 10);
     gap: 20px;
     padding: 14px 0;
     border-bottom: 1px solid var(--rule);
+    color: inherit;
+    text-decoration: none;
   }
 
   .toc-num {

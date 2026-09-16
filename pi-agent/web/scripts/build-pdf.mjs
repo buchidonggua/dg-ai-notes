@@ -200,8 +200,41 @@ export async function mergeWithOutline(parts, outPath) {
 
   // outline 书签（用 pdf-lib 低级 API 手写 Outlines 字典）
   try {
-    const { PDFName, PDFNumber, PDFHexString } = await import('pdf-lib');
+    const { PDFName, PDFNumber, PDFHexString, PDFArray, PDFDict, PDFString } = await import('pdf-lib');
     const context = merged.context;
+
+    // Chapter links on the printed TOC initially point to the web route. Turn
+    // only the links declared by a part into local PDF destinations so the
+    // downloaded book remains navigable without a running Astro server.
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (!part.internalLinks) continue;
+      const partOffset = pageOffsets[i];
+      for (let pageIndex = partOffset.start; pageIndex < partOffset.start + partOffset.count; pageIndex++) {
+        const page = merged.getPage(pageIndex);
+        const annots = page.node.lookupMaybe(PDFName.of('Annots'), PDFArray);
+        if (!annots) continue;
+        for (let annotIndex = 0; annotIndex < annots.size(); annotIndex++) {
+          const annot = context.lookupMaybe(annots.get(annotIndex), PDFDict);
+          const action = annot?.lookupMaybe(PDFName.of('A'), PDFDict);
+          const uriObject = action?.lookupMaybe(PDFName.of('URI'), PDFString);
+          if (!uriObject) continue;
+
+          const uri = uriObject.decodeText();
+          let pathname;
+          try { pathname = new URL(uri).pathname; } catch { pathname = uri; }
+          const targetTitle = part.internalLinks[pathname] ?? part.internalLinks[uri];
+          const target = pageOffsets.find(po => po.title === targetTitle);
+          if (!target) continue;
+
+          annot.delete(PDFName.of('A'));
+          annot.set(PDFName.of('Dest'), context.obj([
+            merged.getPage(target.start).ref,
+            PDFName.of('Fit'),
+          ]));
+        }
+      }
+    }
 
     // 先注册所有 outline 节点（拿到 indirect ref）
     const outlineRefs = pageOffsets.map(() => context.register(context.obj({})));
@@ -314,7 +347,16 @@ async function main() {
     console.log(`\n→ 合并 + outline...`);
     const parts = [
       { file: coverPdf, title: '封面' },
-      { file: tocPdf,  title: '目录' },
+      {
+        file: tocPdf,
+        title: '目录',
+        internalLinks: Object.fromEntries(
+          CHAPTERS.map(ch => [
+            `/modules/${ch.slug}${isPython ? '/python' : ''}`,
+            ch.title,
+          ]),
+        ),
+      },
       ...chapterPdfs,
     ];
     await mergeWithOutline(parts, finalPath);
