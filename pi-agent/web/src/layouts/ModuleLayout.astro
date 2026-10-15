@@ -63,7 +63,7 @@ const tsCounterpartUrl = isPython ? getCounterpartUrl(entry) : null;
       <article id="module-content">
         {isPython && (
           <aside class="python-notice">
-            <strong>Python 转写版。</strong> 本文是 TypeScript 原版的 Python 转写，核心设计与原版一一对应，部分生态库按 Python 习惯调整。
+            <strong>Python 转写版。</strong> 用 Python 语法解释 TypeScript 原版的设计。Pi 官方 SDK 是 TypeScript；示例中的 Pi Python 导入是概念表示，不对应官方 Python 包。
             {tsCounterpartUrl && <a href={tsCounterpartUrl}>查看 TypeScript 原版 →</a>}
           </aside>
         )}

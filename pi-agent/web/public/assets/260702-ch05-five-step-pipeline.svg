@@ -20,7 +20,7 @@
     <line x1="480" y1="76" x2="480" y2="104" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
 
     <!-- ===== Step 1: prepareArguments ===== -->
-    <rect data-anchor="s2-ch05-step1" x="280" y="108" width="400" height="64" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+    <rect x="280" y="108" width="400" height="64" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
     <circle cx="304" cy="140" r="14" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1"/>
     <text x="304" y="145" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
           text-anchor="middle">1</text>
@@ -53,7 +53,7 @@
     <line x1="480" y1="364" x2="480" y2="392" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
 
     <!-- ===== Step 4: tool.execute ===== -->
-    <rect data-anchor="s2-ch05-step4" x="280" y="396" width="400" height="64" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.4"/>
+    <rect x="280" y="396" width="400" height="64" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.4"/>
     <circle cx="304" cy="428" r="14" fill="rgba(181,82,58,0.20)" stroke="#b5523a" stroke-width="1.4"/>
     <text x="304" y="433" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
           text-anchor="middle">4</text>
@@ -64,12 +64,12 @@
     <line x1="480" y1="460" x2="480" y2="488" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
 
     <!-- ===== Step 5: afterToolCall ===== -->
-    <rect data-anchor="s2-ch05-step5" x="280" y="492" width="400" height="64" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+    <rect x="280" y="492" width="400" height="64" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
     <circle cx="304" cy="524" r="14" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1"/>
     <text x="304" y="529" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
           text-anchor="middle">5</text>
     <text x="328" y="516" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">afterToolCall</text>
-    <text x="328" y="536" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">后处理 · 日志、审计、修改结果</text>
+    <text x="328" y="536" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">后处理 · 可修改结果，也可能失败</text>
     <text x="328" y="550" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">例：脱敏、记录执行时长</text>
 
     <line x1="480" y1="556" x2="480" y2="584" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
@@ -84,7 +84,7 @@
     <!-- ===== Right side: failure branches ===== -->
     <text x="744" y="92" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
           letter-spacing="0.14em">FAILURE PATH</text>
-    <text x="744" y="108" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif">每步都可中断</text>
+    <text x="744" y="108" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif">工具阶段的局部失败</text>
 
     <line x1="680" y1="140" x2="744" y2="140" stroke="#b5523a" stroke-width="1" stroke-dasharray="4,3"/>
     <line x1="680" y1="236" x2="744" y2="236" stroke="#b5523a" stroke-width="1" stroke-dasharray="4,3"/>
@@ -105,20 +105,20 @@
     <text x="834" y="432" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">执行抛出异常</text>
 
     <rect x="748" y="508" width="172" height="32" rx="4" fill="rgba(181,82,58,0.05)" stroke="rgba(181,82,58,0.40)" stroke-width="0.8"/>
-    <text x="834" y="528" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">后处理修改结果</text>
+    <text x="834" y="528" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">afterToolCall 抛异常</text>
 
     <!-- All failures converge to error result -->
     <path d="M 834 156 L 834 220 M 834 252 L 834 316 M 834 348 L 834 412 M 834 444 L 834 508 M 834 540 L 834 600"
           fill="none" stroke="#b5523a" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>
     <path d="M 834 600 L 700 600" stroke="#b5523a" stroke-width="1" stroke-dasharray="4,3"/>
     <rect x="620" y="640" width="248" height="32" rx="4" fill="rgba(28,25,23,0.05)" stroke="#1c1917" stroke-width="1"/>
-    <text x="744" y="660" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">→ 同样产 ToolResultMessage（isError: true）</text>
+    <text x="744" y="660" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">→ 捕获到的工具阶段失败可产错误 ToolResultMessage</text>
 
     <!-- ===== Left side: principle ===== -->
     <line x1="40" y1="690" x2="920" y2="690" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
     <text x="40" y="708" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
           letter-spacing="0.14em">DESIGN</text>
     <text x="100" y="708" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" font-style="italic">
-      所有失败最终都编码成 isError:true 的消息——循环不被异常打断。这就是"永不抛出"原则。
+      工具阶段中被源码捕获的失败可编码为 isError:true；事件监听器等 Loop 错误仍可能向上抛出。
     </text>
   </svg>

@@ -34,7 +34,7 @@ export const SERIES_META: Record<'internals' | 'practice', SeriesMeta> = {
     book: 'internals',
     label: '源码学习',
     eyebrow: '源码学习',
-    tagline: '10 章拆解一个生产级 Agent SDK 的设计与实现',
+    tagline: '12 章拆解一个生产级 Agent SDK 的设计与实现',
     audience: '想看懂 Harness 设计、理解 Agent 内部运转的工程师',
   },
   practice: {
@@ -140,7 +140,8 @@ export async function getModuleBySlug(slug: string): Promise<ModuleEntry | undef
  * 系列隔离：源码精读篇与实战上手篇互不串台。
  */
 export async function getAdjacentModules(currentOrder: number, book: 'internals' | 'practice') {
-  const all = await getPublishedModules(book);
+  // 每章只取一个标准入口，避免双语言变体影响相邻章节选择。
+  const all = (await getPublishedModules(book)).filter(m => m.data.variant === 'ts');
   const prev = all.filter(m => m.data.displayOrder < currentOrder).pop();
   const next = all.filter(m => m.data.displayOrder > currentOrder).shift();
   return { prev, next };

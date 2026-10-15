@@ -48,7 +48,7 @@
 
     <!-- Timeline with turns -->
     <text x="60" y="140" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">循环时间线</text>
-    <line x1="60" y1="148" x2="440" y2="148" stroke="#1c1917" stroke-width="1"/>
+    <line x1="60" y1="166" x2="440" y2="166" stroke="#1c1917" stroke-width="1"/>
 
     <!-- Turn markers -->
     <rect x="80" y="138" width="80" height="20" rx="2" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
@@ -73,15 +73,15 @@
       → 在 Turn 3 开头注入
     </text>
     <text x="240" y="298" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">
-      （当前任务被中断）
+      （当前 Turn 正常完成后注入，不打断执行）
     </text>
 
     <!-- Bottom: characteristics -->
     <rect x="60" y="340" width="360" height="160" rx="6" fill="rgba(181,82,58,0.04)" stroke="rgba(181,82,58,0.30)" stroke-width="1" stroke-dasharray="4,4"/>
     <text x="80" y="364" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" letter-spacing="0.14em">CHARACTERISTICS</text>
-    <text x="80" y="388" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">时机：每圈内层循环开头 + 结尾</text>
+    <text x="80" y="388" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">时机：runLoop 开始时 + 每圈结尾</text>
     <text x="80" y="408" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">来源：用户实时输入的新指令</text>
-    <text x="80" y="428" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">影响：会驱动循环继续（不等当前完成）</text>
+    <text x="80" y="428" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">影响：当前 Turn 结束后可继续处理</text>
     <text x="80" y="460" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace">getSteeringMessages()</text>
     <text x="80" y="480" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
       用户让 Agent 修 bug，中途想起"也检查测试文件"
@@ -97,7 +97,7 @@
 
     <!-- Timeline -->
     <text x="540" y="140" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">循环时间线</text>
-    <line x1="540" y1="148" x2="920" y2="148" stroke="#1c1917" stroke-width="1"/>
+    <line x1="540" y1="166" x2="920" y2="166" stroke="#1c1917" stroke-width="1"/>
 
     <rect x="560" y="138" width="80" height="20" rx="2" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
     <text x="600" y="152" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">Turn 1</text>

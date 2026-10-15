@@ -18,9 +18,9 @@
 
 ## 🎯 三大内容，总有一个你用得上
 
-### 🔬 源码解读 · 10 章拆完一个生产级 SDK
+### 🔬 源码解读 · 12 章拆完一个生产级 SDK
 
-不是贴代码加注释，而是每章回答「是什么 / 怎么做 / 为什么」：从三层架构、Agent Loop 一路讲到上下文工程、会话管理，把 Pi 的设计取舍讲透。**TypeScript + Python 双版本**对照，30+ 配图，还配了一个可单步运行、随便改参数的 [Agent Loop 实验场](./pi-agent/notebooks/agent-loop.ipynb)。
+不是贴代码加注释，而是每章回答「是什么 / 怎么做 / 为什么」：从三层架构、Agent Loop 一路讲到上下文工程、会话管理、扩展系统与测试模式，把 Pi 的设计取舍讲透。**TypeScript + Python 双版本**对照，配合流程图阅读，还配了一个可单步运行、随便改参数的 [Agent Loop 实验场](./pi-agent/notebooks/agent-loop.ipynb)。
 
 **怎么读**：[TS 版目录](./pi-agent/pi_source_dive/typescript/) · [Python 版目录](./pi-agent/pi_source_dive/python/) · [在线版](https://dg-ai-notes.pages.dev) · [PDF 下载](../../releases)
 

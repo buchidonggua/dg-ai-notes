@@ -3,8 +3,8 @@
 
     <!-- Window limit line -->
     <line x1="40" y1="80" x2="920" y2="80" stroke="#b5523a" stroke-width="1.2" stroke-dasharray="6,4"/>
-    <text x="60" y="72" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" letter-spacing="0.10em">CONTEXT WINDOW · 200K</text>
-    <text x="900" y="72" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" text-anchor="end">Claude 200K · GPT 128K</text>
+    <text x="60" y="72" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" letter-spacing="0.10em">示意窗口 · 200K tokens</text>
+    <text x="900" y="72" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" text-anchor="end">窗口大小随当前模型配置变化</text>
 
     <!-- ===== BEFORE (left) ===== -->
     <text x="180" y="120" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
@@ -61,7 +61,7 @@
     <!-- Kept messages -->
     <rect x="580" y="268" width="240" height="56" rx="2" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
     <text x="700" y="284" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">保留近期消息（11 条）</text>
-    <text x="700" y="300" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">仍在 keepRecentTokens 阈值内</text>
+    <text x="700" y="300" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">按合法切点选出的保留区</text>
     <text x="700" y="316" fill="#a8a29e" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">~50,000 tokens</text>
 
     <text x="700" y="346" fill="#2d6e3c" font-size="14" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">60,000 tokens</text>
@@ -73,7 +73,7 @@
           letter-spacing="0.14em">IMPACT</text>
 
     <text x="40" y="456" fill="#1c1917" font-size="11" font-family="'Geist', sans-serif">
-      Token 占用从 <tspan fill="#b5523a" font-weight="600">92.5%</tspan> 降到 <tspan fill="#2d6e3c" font-weight="600">30%</tspan>。压缩是有损的（细节丢了），但保留了对话目标、约束、关键决策、进度等结构化信息。
+      示意占用从 <tspan fill="#b5523a" font-weight="600">92.5%</tspan> 降到 <tspan fill="#2d6e3c" font-weight="600">30%</tspan>。压缩是有损的（细节丢了），但保留了对话目标、约束、关键决策、进度等结构化信息。
     </text>
     <text x="40" y="480" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" font-style="italic">
       模型仍然知道"我们在做什么、做到哪了、决定了什么"——它不知道的是早期对话的具体措辞。

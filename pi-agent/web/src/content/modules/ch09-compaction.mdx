@@ -22,23 +22,23 @@ counterpart: ch09-compaction.python
 
 import Diagram from '../../components/Diagram.astro';
 
+> 源码基准：本地 `pi-main` 快照，核心包版本 `v0.84.3`，核对日期 `2026-10-12`。下文路径均相对源码根目录。
 
+第 8 章我们看了上下文工程的全景——其中 `transformContext` 只是低层 Agent 的扩展点；coding-agent 的自动 Compaction 则由 `AgentSession` 调度。当当前会话上下文逼近模型窗口，或模型明确报告输入溢出时，coding-agent 才进入相应压缩路径。
 
-第 8 章我们看了上下文工程的全景——其中 `transformContext` 只是扩展点，真正"动手压缩"的核心机制是 Compaction。当对话越来越长，消息越来越多，最终会超出模型的上下文窗口（Claude 200K、GPT 128K）。这时候需要一件更激进的事——**压缩对话历史**。
-
-这一章就看 Pi 怎么在上下文窗口快满时，把 50 轮对话压缩成一段摘要，让 Agent 继续"记住"之前发生了什么。
+这一章沿源码看 `AgentSession` 如何结合 usage、估算和 overflow 错误检查压缩条件，如何选择保留区、生成摘要，以及什么时候会做一次受限的 overflow recovery。低层 `Agent` 本身不会自动压缩。
 
 ---
 
 ## 一、问题：对话越来越长，窗口装不下了
 
-Agent 和 LLM 的对话是"有状态的"——每轮都把之前的完整历史发给模型。你和 Agent 聊了 50 轮，每轮可能有几千 token 的工具结果。算一算：50 轮 × 平均 3000 token/轮 = 150,000 token。Claude Sonnet 的上下文窗口是 200,000 token。快满了。
+Agent 和 LLM 的对话是"有状态的"——后续请求会带上当前上下文。工具结果、长代码和多轮消息都可能让输入逐步接近模型上下文窗口。下面的 185K / 200K 数字只是帮助理解压缩收益的示意，不代表某个模型固定的窗口或真实会话统计。
 
 <Diagram file="/assets/260702-ch09-before-after.svg" caption="压缩前后 Token 占用对比" id="260702-ch09-before-after" />
 
 **配图说明**：左侧红色条带——185K token 几乎塞满 200K 窗口。右侧绿色——压缩后只剩 60K（10K 摘要 + 50K 近期消息），腾出 140K 可继续聊。底部说明压缩是有损的但保留了目标/约束/决策等结构化信息。
 
-满了会怎样？API 会报错："prompt is too long"。对话被迫中断。
+满了会怎样取决于 provider：有的返回可识别的错误，有的可能成功响应但报告的 input 超窗，还有的会以 length stop 且零输出等信号表现。错误检测有明确条件，不是所有 provider 都能无误识别。
 
 最直觉的解决方案是删旧消息——把前 30 轮扔掉，只保留最近 20 轮。但这样 Agent 就"失忆"了——它不记得你最初让它做什么、不记得之前做了什么决策、不记得改了哪些文件。
 
@@ -83,7 +83,7 @@ Agent 仍然"记得"前 30 轮做了什么——只是记忆从"原始录像"变
                               → LLM 看到的是"摘要 + 近期消息"
 ```
 
-**这是理解整章的钥匙**——所有细节（什么时候触发、在哪切、怎么生成摘要、结果怎么生效）都围绕这个"两轮之间"的时序展开。后续每一节都是这条主线的具体环节。
+**这是理解常规阈值压缩的主线**，但不是唯一入口。`AgentSession` 在 `agent_end` 后检查阈值；发送下一条 prompt 前也会补查上一次响应，用来处理 aborted 或没有有效 usage 的情形。遇到 overflow / recoverable length stop 时，压缩与是否继续当前 turn 还取决于响应终态，后文会单独区分。
 
 ---
 
@@ -91,7 +91,7 @@ Agent 仍然"记得"前 30 轮做了什么——只是记忆从"原始录像"变
 
 ### 触发条件
 
-压缩不是随便触发的，它有一个明确的"红线"：
+阈值压缩由 `shouldCompact` 判断：
 
 ```typescript
 function shouldCompact(contextTokens, contextWindow, settings): boolean {
@@ -100,19 +100,20 @@ function shouldCompact(contextTokens, contextWindow, settings): boolean {
 }
 ```
 
-代入具体数字：`contextWindow = 200,000`，`reserveTokens = 16,384`。
+默认设置为 `enabled = true`、`reserveTokens = 16,384`、`keepRecentTokens = 20,000`。如果某个模型窗口是 200,000 token，按默认 reserve 算出的示例阈值是 183,616；真实阈值取决于当前模型的 `contextWindow` 和设置。
 
-当 `contextTokens > 200,000 - 16,384 = 183,616` 时，触发压缩。
+当 `contextTokens` 严格大于 `contextWindow - reserveTokens` 时，才触发压缩。
 
-`reserveTokens` 是为 LLM 回复预留的空间——你不能把上下文窗口塞满到 200,000，否则模型连回复的空间都没有了。
+`reserveTokens` 为后续生成和压缩操作留出空间。token 数恰好等于 `contextWindow - reserveTokens` 时，这个函数还不会触发。
 
 ### Token 估算：不精确但够用
 
-一个关键问题：怎么知道当前有多少 token？精确计算需要用 tokenizer，但不同模型的 tokenizer 不同，而且计算开销大。Pi 用了一个简单粗暴的方法：
+一个关键问题：怎么知道当前有多少 token？coding-agent 优先使用有效 assistant 响应的 provider usage。需要估算时，`estimateContextTokens` 会用最后一条有效 usage 作为基数，再估算它之后追加的消息；如果找不到有效 usage，才估算全部消息。中止、错误和全零 usage 不会作为有效基数。单条消息估算使用 `ceil(chars / 4)` 启发式；图片按固定字符估值计入。它不是 tokenizer 结果，也不保证对不同语言、内容类型或 provider 同样准确。
+
+`calculateContextTokens` 优先读 usage 的 `totalTokens`，没有可用总数时再把 `input`、`output`、`cacheRead`、`cacheWrite` 相加。压缩后，coding-agent 的 `getContextUsage()` 在拿到压缩后新一条有效响应 usage 前会把 token 数报告为未知；不能把最近一条保留 assistant 的旧 usage 当成压缩后上下文的精确计数。
 
 ```typescript
-// 实际签名（compaction.ts:256-296）：estimateTokens(message: AgentMessage): number
-// 对每个 message 取其文本字符数 chars，然后 return Math.ceil(chars / 4)
+// 单条消息的 fallback estimate：按角色提取文本、thinking、工具调用等内容
 function estimateTokens(message: AgentMessage): number {
     let chars = 0;
     // ...按 message.role 分别累加 text/thinking/toolCall/command/output/summary 的字符数
@@ -120,18 +121,18 @@ function estimateTokens(message: AgentMessage): number {
 }
 ```
 
-一个英文字符大约 0.25 token（4 个字符 ≈ 1 token，估算与实际接近）。**中文是反向偏差**：1 个汉字实际大约 1-2 token，但 `chars/4` 只算成 0.25 token——**严重低估**中文占比高的对话。这意味着纯中文场景下，Pi 觉得"还没到压缩阈值"，实际 token 已经接近上限。这是一个已知的精度问题，但 `chars/4` 在英文为主时足够准，且实现极简。
-
-**为什么用不精确的估算？** 因为宁可高估、不可低估。高估了最多多压缩一次（无害）；低估了 API 会报错（有害）。这是一种"保守策略"——用精度换安全。
+因此 `chars / 4` 只作为缺少有效 usage 时的 fallback。它能让压缩逻辑继续工作，但不应把估算值当作精确 token 计数，也不能据此推出特定语言下的固定误差方向。
 
 ### 两种触发场景
 
 | 场景 | 什么时候触发 | 意味着什么 |
 |------|------------|-----------|
-| **预防性压缩** | token 超过阈值（183,616）但还没报错 | 提前压缩，避免 API 报错 |
-| **应急性压缩** | API 返回上下文溢出错误 | 补救措施，先压缩再重试 |
+| **阈值压缩** | usage 或 fallback 估算超过 `contextWindow - reserveTokens` | 压缩已完成的上下文；不重试已完成响应 |
+| **overflow recovery** | 当前模型的响应命中 overflow 条件，或是可恢复的 length stop | 移除失败 / 截断 assistant 消息，压缩，再至多继续一次 |
 
-预防性压缩是常态——在问题发生之前就处理掉。应急性压缩是兜底——万一估算偏了，API 真报错了，还有一道防线。
+阈值压缩与 overflow recovery 是两个分支。后者的检查还会考虑模型是否与当前会话模型一致，避免旧模型的失败响应触发新模型的恢复流程。
+
+`isContextOverflow` 有三类信号：① `stopReason === "error"` 且错误文本匹配 provider overflow 模式，并排除限流等已知非溢出错误；② 响应正常结束，但 `usage.input + usage.cacheRead > contextWindow`；③ `stopReason === "length"`、`usage.output === 0`，并且输入与 cacheRead 至少占窗口的 99%。**零输出本身不代表 overflow。** 另一个独立信号 `isRecoverableLength` 要求 stop reason 是 `length`、目标输出上限大于 0，且实际输出小于该目标；它覆盖模型 / provider 提前截断的恢复场景，不等同于 `isContextOverflow`。
 
 ---
 
@@ -141,13 +142,13 @@ function estimateTokens(message: AgentMessage): number {
 
 <Diagram file="/assets/260702-ch09-cut-point.svg" caption="压缩的切割点算法" id="260702-ch09-cut-point" />
 
-**配图说明**：消息序列条带（entries 0-9），每条标注类型。从最新往旧累积 token，toolResult 后不能切（红 ✗），user / assistant 后可以（绿 ✓）。最终选定 entry 7 (assistant) 为切割点——左侧 0-6 被压缩成 CompactionSummaryMessage，右侧 7-9 保留。注意：切在 assistant 上会把 entry 4 (user) 和 entry 5-7 (assistant+toolResult) 这个 Turn 切断，触发 turnPrefix 处理（§五详讲）。
+**配图说明**：示意路径从最新 entry 向旧 entry 累积估算 token。`toolResult` 不是切点；上下文可见的 user-like 消息、assistant 消息可作为候选。切在 assistant 上时，切点所在 turn 的前缀会被单独摘要，切点及其后缀保留。
 
 ### 不是哪里都能切
 
 LLM 的对话历史有严格的结构约束。比如 `ToolResult` 消息必须紧跟在触发它的 `AssistantMessage`（含 ToolCall）之后。如果你把 ToolCall 留在"保留区"、把 ToolResult 切到"压缩区"，模型会看到"我调用了 read 工具，但结果在哪？"——上下文断裂。
 
-所以切割点必须是**有效切割点**——不会破坏消息对的位置。
+因此切割点必须是**上下文可见的合法 entry**：`toolResult` 不可选为切点，避免把 assistant 工具调用留在压缩区、却把它的结果单独放进保留区。当前实现还允许 assistant 和 user-like 消息作为候选；user-like 包括普通 user、`bashExecution`、`custom`、`branchSummary` 和 `compactionSummary`。
 
 ```
 entry:  0     1     2      3       4     5      6       7      8
@@ -157,16 +158,16 @@ entry:  0     1     2      3       4     5      6       7      8
 
 有效切割点 = [1(usr), 2(ass), 4(usr), 5(ass), 7(ass)]
                                                        ↑
-                                          注意：3(tool)、6(tool)、8(tool) 全部被排除
+                                          toolResult 不能作为切点
 ```
 
-源码 [findValidCutPoints](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/compaction/compaction.ts#L305) 的规则很清楚：**`user` 和 `assistant` 都是合法切点，`toolResult` 不是**。注释里的关键说明是：
+`findValidCutPoints` 的规则是：**上下文可见的 user-like / assistant entry 可以作为候选，`toolResult` 不是候选**。注释里的关键说明是：
 
 > When we cut at an assistant message with tool calls, its tool results follow it and will be kept.
 
 ### 切点的语义：保留区的起点
 
-理解切割点要抓住一个关键——**切点不是"被切掉的最后一条"，而是"保留区的第一条"**。这个语义非常重要，会澄清你接下来的所有疑问。
+理解切割点要抓住一个关键——**切点不是"被切掉的最后一条"，而是"保留区的第一条"**。`prepareCompaction` 会先把可压缩范围限定在上次 compaction 边界之后；选出的 entry id 会写进新 `CompactionEntry.firstKeptEntryId`。
 
 切点 = user，意味着什么？user 自己进保留区，**它后面的 assistant 和 toolResult 也都跟着进保留区**——这个 user 开头的完整 Turn 全部保留。被压缩的是 user **之前**的消息。
 
@@ -181,35 +182,44 @@ entry:  0     1     2      3       4     5      6       7      8
                               → 这个 Turn 完整！
 ```
 
-所以在 user 后切**是最安全的选择**——天然保证 Turn 完整，因为 user 后面跟着的 assistant 和 toolResult 都会跟着进保留区。
+所以在 user-like turn 起点切，通常能保留一个完整 turn；assistant 切点则可能需要单独处理 turn 前缀。
 
 ### 向后遍历：保护最重要的东西
 
-确定有效切割点后，从哪里切？Pi 的策略是**从后往前累积**（[findCutPoint L392-454](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/compaction/compaction.ts#L392)）：
+确定有效切割点后，从哪里切？Pi 的策略是**从后往前累积**：
 
 ```
 从最新消息往回走，累积 token 数。
 当累积量 >= keepRecentTokens（20,000）时，停止。
-在停止位置之后找最近的有效切割点——那里就是切刀。
+在达到预算的位置或其后，找最近的有效切割点——它成为保留区的起点。
 ```
 
 为什么从后往前？因为**最近的上下文最重要**。模型需要知道"刚才做了什么""刚才读了什么文件""用户最新说了什么"。往回走直到累积够 20,000 token，确保保留足够的近期上下文。
 
 ```typescript
-function findCutPoint(entries, keepRecentTokens) {
-    const cutPoints = findValidCutPoints(entries);  // 排除 toolResult
+function chooseCutPoint(
+    cutPoints: number[],
+    startIndex: number,
+    endIndex: number,
+    keepRecentTokens: number,
+    estimateEntryTokens: (index: number) => number,
+) {
+    let accumulatedTokens = 0;
+    let cutIndex = cutPoints[0];
 
-    let accumulated = 0;
-    for (let i = entries.length - 1; i >= 0; i--) {
-        accumulated += estimateTokens(entries[i]);
-        if (accumulated >= keepRecentTokens) {
-            // 找到第一个 >= i 的有效切割点
-            return 第一个 >= i 的 cutPoint;
+    for (let i = endIndex - 1; i >= startIndex; i--) {
+        accumulatedTokens += estimateEntryTokens(i);
+        if (accumulatedTokens >= keepRecentTokens) {
+            cutIndex = cutPoints.find((candidate) => candidate >= i) ?? cutPoints[0];
+            break;
         }
     }
-    return 最早的 cutPoint;  // 全部需要压缩
+
+    return cutIndex;
 }
 ```
+
+这段是便于看清选择规则的有效 TypeScript 节选；真实 `findCutPoint` 还会从 session entry 转成上下文消息后估 token，并把 `CompactionEntry` 当作边界处理。
 
 切割结果把消息分成两组：
 
@@ -239,7 +249,7 @@ Pi 不是让 LLM "随便写一段总结"，而是要求它填一个固定格式�
 
 为什么用结构化格式？因为自由文本容易遗漏信息——LLM 可能花大篇幅描述某个有趣的技术细节，却忘了记录用户的核心需求。固定 section 强制 LLM 覆盖每个维度，减少遗漏。
 
-### 摘要生成：一次 LLM 调用
+### 摘要生成：一次或两次 LLM 调用
 
 生成摘要的过程是：先把消息序列化成文本，然后调用 LLM 生成摘要。
 
@@ -263,6 +273,8 @@ Pi 不是让 LLM "随便写一段总结"，而是要求它填一个固定格式�
     ...
 ```
 
+正常压缩用一次摘要调用；如果切点拆开一个 turn，则先生成历史摘要（存在待摘要历史时），再顺序生成一个更短的 turn-prefix 摘要，最后合并。进入摘要 prompt 前，消息会先转成 LLM 标准消息并序列化为带角色标签的文本；每条 tool result 在序列化摘要输入里最多保留 2000 个字符，避免原始工具输出再次把摘要请求撑大。摘要调用不提供工具，响应若以 `length` 截断、报错或试图调用工具，都不会作为成功摘要持久化。
+
 ### 增量更新：不是每次从零开始
 
 如果一个长对话被压缩了多次（第一次压缩第 1-30 轮，第二次压缩第 31-50 轮），第二次压缩时会传入上一次的摘要作为 `previousSummary`：
@@ -277,7 +289,7 @@ Pi 不是让 LLM "随便写一段总结"，而是要求它填一个固定格式�
   输出：摘要 B（在 A 的基础上合并新信息）
 ```
 
-这让 LLM 做的是**更新而非重写**——已有的 Goal/Constraints 保留，新增的 Progress 追加。比每次从零开始写摘要更稳定。
+提示词要求 LLM **更新而非从零开始**——保留已有信息、加入新进度，并在状态变化时调整下一步；不再相关的信息允许移除。这是 prompt 对摘要结构的约束，不代表模型每次都会逐条无损保留。
 
 ### 文件跟踪：压缩不只是摘要文字
 
@@ -285,7 +297,6 @@ Pi 不是让 LLM "随便写一段总结"，而是要求它填一个固定格式�
 
 ```
 <read-files>
-src/auth.ts
 src/utils/hash.ts
 </read-files>
 
@@ -294,32 +305,37 @@ src/auth.ts
 </modified-files>
 ```
 
-这些列表跨压缩累积——第二次压缩时，`previousSummary` 里的文件列表会被合并进新的摘要。这样即使经过了多轮压缩，Agent 仍然知道整个会话过程中读过哪些文件、改过哪些文件。
+这些列表跨压缩累积——准备下一次压缩时，coding-agent 会从上一条由 Pi 生成的 CompactionEntry.details 取回文件集合，再加入这次被摘要消息中的工具调用。`readFiles` 只保留读过但没有写入或编辑过的文件；写过 / 编辑过的文件进入 `modifiedFiles`，两组不会重复列出同一个已修改文件。
 
 ---
 
 ## 五、极端情况：Turn 分割
 
-§三 讲了 user 切点和 assistant 切点都合法。但两者性质不同——
+§三 讲了多种上下文可见消息都能成为候选切点。turn 起点与普通 assistant 切点的性质不同——
 
-- **user 切点**：天然保证 Turn 完整（user 后面的 assistant + toolResult 跟着进保留区）
-- **assistant 切点**：**会切断 Turn**——这个 assistant 对应的 user 在压缩区，自己却在保留区
+- **turn-start 切点**：包括 user、bashExecution、custom、branchSummary、compactionSummary；作为 turn 起点时不会拆分此前的 turn
+- **assistant 切点**：如果向前能找到 turn 起点，就会**切断 Turn**；前缀单独生成摘要，选中切点及其后续消息留在上下文里
 
-源码 [findCutPoint L444-453](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/compaction/compaction.ts#L444) 的判断逻辑：
+`findCutPoint` 最后通过 turn-start 判定是否需要拆分：
 
 ```typescript
-const isUserMessage = cutEntry.message.role === "user";
-const turnStartIndex = isUserMessage ? -1 : findTurnStartIndex(entries, cutIndex, startIndex);
-isSplitTurn: !isUserMessage && turnStartIndex !== -1,
+const startsTurn = isTurnStartEntry(cutEntry);
+const turnStartIndex = startsTurn ? -1 : findTurnStartIndex(entries, cutIndex, startIndex);
+const result = {
+    turnStartIndex,
+    isSplitTurn: !startsTurn && turnStartIndex !== -1,
+};
 ```
 
-**切点是 user → 一定不是 split turn**。**切点是 assistant（或 bashExecution/custom 等）→ 可能是 split turn**——向前找到这个 Turn 的 user 起点，把 user 起点到切点之间的消息（assistant + toolResult 序列）单独处理。
+**切点是 turn-start entry → 不会标记为 split turn**。**切点是 assistant → 如果向前找到 turn 起点就标记 split turn**。实现会把 turn 起点到切点前的可见消息作为 `turnPrefixMessages`，单独处理。
 
 ### 为什么允许 assistant 切点？
 
 最直觉的疑问是：既然 assistant 切点会切断 Turn，为什么不允许只切 user？这样不就完全避免 split turn 了吗？
 
-答案藏在 token 控制的精度上。看这个场景：
+从实现可以确认：候选切点包含 assistant 消息，切在 turn 中间时会额外准备 turn-prefix 摘要。一个合理的设计动机是：只允许 turn-start 切点，可能为了保住最近一轮而把更早的消息也留在保留区；允许 assistant 切点能提供更细的保留边界。这个动机是根据算法结构作出的解释，不是源码测得的压缩收益。
+
+看这个示意场景：
 
 ```
 entry:  1     2      3      4      5     6      7     8
@@ -328,16 +344,12 @@ entry:  1     2      3      4      5     6      7     8
                                     向后累积到这里 token 预算用完
 ```
 
-假设向后累积到 entry 6 时累积量刚好达到 `keepRecentTokens`（20K）。这时要找一个"在 6 之后或等于 6"的合法切点：
+假设向后累积到 entry 6 时累积量达到 `keepRecentTokens`。这时实现会在当前位置或之后寻找最近的合法候选：
 
-- 如果**只允许 user 切点**：最近的 user 是 entry 1——意味着保留区从 entry 1 开始，要保留 entry 1-8 共 8 个 entry。但 token 预算可能只够保留 2-3 个 entry。**压缩失败**——根本压不动。
-- 如果**允许 assistant 切点**：选 entry 6 作为切点，保留区只有 entry 6-8 共 3 个 entry，**精确控制 token 量**。
+- 如果只允许 turn-start 切点，最近的 turn-start 可能很早，保留区会包含更多消息。
+- 允许 assistant 切点时，可以选中更靠近 token 边界的 entry；若该 assistant 不在 turn 起点，则用 turn-prefix 摘要保留它前面的必要上下文。
 
-这是个**权衡**：
-- 只允许 user 切点 → 保留区永远过大，压缩效率低甚至失败
-- 允许 assistant 切点 → 精确控制 token，但切断 Turn → 用 turnPrefix 机制弥补
-
-Pi 选择了后者——**优先保证压缩能生效**，然后用 turnPrefix 摘要弥补 Turn 完整性的损失。
+这是**切点粒度与 turn 完整性之间的权衡**：更细的候选边界可能减小保留区，但会拆分 turn，因此代码用单独的摘要保存 turn 起点到切点前的前缀。是否在特定对话里减少了多少 token，需要实际测量，不能从这段算法直接推出。
 
 ### turnPrefix 机制：被切断的 Turn 怎么办？
 
@@ -346,19 +358,19 @@ entry:  1     2      3      4      5      6       7      8     9
        ┌─────┬──────┬──────┬──────┬──────┬───────┬──────┬─────┬──────┐
        │ usr │ ass  │ tool │ ass  │ tool │ tool  │ ass  │tool │ ass │
        └─────┴──────┴──────┴──────┴──────┴───────┴──────┴─────┴──────┘
-         ↑     └────────── turnPrefixMessages ──────────┘  └─ kept ─┘
-       turnStart=1            (entries 2-6)              entries 7-9
+         └────────── turnPrefixMessages ──────────┘  └─ kept ─┘
+       turnStart=1，entries 1-6                         entries 7-9
 
        切点在 entry 7（assistant），但 entry 1（user）是它的 Turn 起点
-       → entry 1 在主摘要里压缩
-       → entry 2-6 是"被切断的 Turn 前缀"，单独生成 turnPrefix 摘要
+       → entry 1-6 是"被切断的 Turn 前缀"，单独生成 turnPrefix 摘要
+       → entry 7-9 留在保留区
 ```
 
-源码里 Pi 把这部分叫做 **turnPrefixMessages**（[compaction.ts:698-705](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/compaction/compaction.ts#L698)）——用专门的 [`TURN_PREFIX_SUMMARIZATION_PROMPT`](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/compaction/compaction.ts#L737) 单独生成一份前缀摘要，和主摘要**并行生成**（[L784-813](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/compaction/compaction.ts#L784) 用 `Promise.all`），最后合并成一个摘要文本。
+源码里 Pi 把这部分叫做 **turnPrefixMessages**——用专门的 `TURN_PREFIX_SUMMARIZATION_PROMPT` 单独生成前缀摘要。实现先生成主历史摘要（若有需要），再生成 turn-prefix 摘要，然后合并成一个摘要文本；这两次 summarization 调用是顺序执行的。
 
 注意主摘要和 turnPrefix 摘要的分工不同：
-- **主摘要**覆盖的是被压缩的"完整历史"（多个完整 Turn）→ 用 6 section 结构化格式
-- **turnPrefix 摘要**覆盖的是被切断的"半个 Turn"（user 在主摘要里、assistant 在保留区）→ 用更轻量的 3 段格式（Original Request / Early Progress / Context for Suffix）
+- **主摘要**覆盖切分 turn 之前的历史 → 用 6 section 结构化格式
+- **turnPrefix 摘要**覆盖从 turn 起点到保留区切点之前的消息 → 用更轻量的 3 段格式（Original Request / Early Progress / Context for Suffix）
 
 两份摘要合并后存储在同一个 CompactionEntry 里，下一轮 buildSessionContext 时一起注入。LLM 看到的是一份完整的"压缩前发生了什么 + 半个 Turn 的前缀"。
 
@@ -375,22 +387,23 @@ entry:  1     2      3      4      5      6       7      8     9
 每次压缩产生一个 `CompactionEntry`，它存储在 Session Tree 上（第 10 章详讲）：
 
 ```typescript
-{
+const entry = {
     type: "compaction",
     summary: "## Goal\nFix auth.ts...\n## Progress\n...",   // 摘要文本
     tokensBefore: 185000,              // 压缩前 token 数（用于诊断和审计）
     firstKeptEntryId: "e30",           // 保留的起始 entry id（重建上下文时从这开始）
-    details: {                         // 文件操作跟踪（来自 extractFileOperations）
-        readFiles: ["src/auth.ts", "src/utils/hash.ts"],
+    details: {                         // 文件操作跟踪
+        readFiles: ["src/utils/hash.ts"],
         modifiedFiles: ["src/auth.ts"],
     },
-    // ... 含 id/parentId/timestamp 等 SessionEntryBase 字段
-}
+};
 ```
+
+写入 session 时还会由 `SessionManager` 补上 entry 的 id、parentId 与 timestamp 等字段。`tokensBefore` 来自准备阶段的当前上下文 token 估值；它可能使用 usage 加尾部估算，不保证一定是 tokenizer 实测值。
 
 ### 上下文重建
 
-下次 Agent 运行时，`buildSessionContext()` 会根据 CompactionEntry 重建上下文：
+`SessionManager.buildSessionContext()` 沿当前 leaf 的父链重建上下文：遇到最新 compaction entry 时加入一条 summary message，再从该 entry 的 `firstKeptEntryId` 指定位置收集后续保留 entries。不是把旧树节点删除，而是在本次 LLM context 中选择“摘要 + 保留区”：
 
 ```
 重建后的上下文：
@@ -398,7 +411,7 @@ entry:  1     2      3      4      5      6       7      8     9
 │     content = 摘要文本
 │     （第6章讲过：convertToLlm 把它翻译成 UserMessage）
 │
-├── 保留的原始消息（entry 30 之后的消息）
+├── 保留的原始消息（从 firstKeptEntryId 起的当前路径后缀）
 │     ├── UserMessage: "继续修复"
 │     ├── AssistantMessage: ...
 │     └── ...
@@ -406,28 +419,33 @@ entry:  1     2      3      4      5      6       7      8     9
 └── （新的消息会在运行中追加）
 ```
 
-回忆第 6 章的消息系统：`CompactionSummaryMessage` 是 coding-agent 的自定义消息类型，`convertToLlm` 会把它翻译成 `<summary>` 标签包裹的 UserMessage。LLM 看到的是："The conversation history before this point was compacted into the following summary: ..."
+回忆第 6 章的消息系统：`CompactionSummaryMessage` 是 coding-agent 的自定义消息类型，`convertToLlm` 会把它转换成一条 user message，并用固定前后缀包裹摘要文本。LLM 看到的是“此前历史被压缩为以下摘要”这类上下文标记。
 
 **对 LLM 来说，之前的几十轮对话变成了一个摘要。** 它不知道原始消息的细节，但它知道目标、进度、决策和文件操作记录——这对继续工作来说通常够用了。
 
 ### 自动压缩的集成
 
-自动压缩嵌入在 AgentSession 的 `agent_end` 事件处理中（第 7 章讲过事件系统）：
+自动压缩由 `AgentSession._checkCompaction()` 和 `_runAutoCompaction()` 调度，不是低层 `Agent` 的自动行为：
 
 ```
-Agent 运行结束（agent_end 事件）
+正常路径：agent_end 后检查；提交下一条 prompt 前也会检查上次响应
     │
     ▼
-检查 shouldCompact()？
+检查 overflow / recoverable length / shouldCompact()？
     │
     ├── 不需要 → 结束
     │
     └── 需要 → 执行压缩
          ├── findCutPoint → 找切割点
+         ├── session_before_compact 扩展钩子可取消或提供自定义结果
          ├── 序列化 + LLM 调用 → 生成摘要
          ├── 追加 CompactionEntry 到 Session Tree
-         └── 下次运行时 buildSessionContext 使用压缩后的上下文
+         └── AgentSession 重建消息状态
 ```
+
+Overflow recovery 有明确的重试边界：如果响应是成功的 `stop`，即便识别为 silent overflow，也只压缩并保留已完成回答，不调用 `continue()` 重试。若响应是 overflow error 或可恢复的 length stop，首次会从 agent 当前消息状态中移除失败 / 截断 assistant 消息，保留 session history 记录，压缩后最多继续一次。每条当前 user message 只允许一次 overflow recovery；再次失败会发出失败事件，不再循环重试。被用户中止的响应通常跳过检查，但下一条 prompt 前的补查可以纳入 aborted 响应后的上下文估算。
+
+这和普通网络 / provider 重试是两套逻辑：transient error 使用单独 retry 设置与退避；context overflow 不交给通用错误重试。摘要生成本身也通过 `retryAssistantCall` 处理可重试的瞬时流错误。手动 compact 是另一入口，不会续跑被打断的 agent turn。
 
 ### 两套事件
 
@@ -446,16 +464,16 @@ UI 可以订阅这些事件来显示"正在压缩上下文..."的进度提示。
 
 <Diagram file="/assets/260702-ch09-compaction-flow.svg" caption="压缩的完整链路" id="260702-ch09-compaction-flow" />
 
-**配图说明**：6 步横向流程——触发判断→找切割点→分割→生成摘要（红色焦点）→存 CompactionEntry→下次运行时重建 context。Step 5 和 Step 6 之间是跨运行的虚线箭头，强调 CompactionEntry 是连接两次运行的桥梁。
+**配图说明**：6 步横向流程——检查阈值或 overflow→找切割点→分割→生成摘要→存 CompactionEntry→重建 AgentSession context。图中的 185K / 200K 是示例数值；threshold 和 overflow recovery 后是否继续 turn，取决于触发分支。
 
 ```
-① 触发判断
-   shouldCompact() → contextTokens(185K) > contextWindow(200K) - reserve(16K)
-   红灯亮起，开始压缩
+① 触发检查（AgentSession）
+   valid usage / fallback estimate → shouldCompact()
+   或者识别 context overflow / recoverable length stop
 
 ② 找切割点
    向后遍历 → 累积 token 到 keepRecent(20K) → 找最近的有效切割点
-   排除 ToolResult 后的位置 → 保证消息对完整
+   排除 toolResult，并在上一次 compaction 边界之后搜索
 
 ③ 分割消息
    切割点之前 → messagesToSummarize（被压缩）
@@ -463,14 +481,15 @@ UI 可以订阅这些事件来显示"正在压缩上下文..."的进度提示。
 
 ④ 生成摘要
    序列化消息为文本 → 调 LLM 填写 6 section 结构化摘要
-   传入 previousSummary 做增量更新 → 合并文件跟踪列表
+   split turn 时再顺序生成 turn-prefix 摘要 → 合并文件跟踪列表
 
 ⑤ 存储结果
    CompactionEntry 追加到 Session Tree
 
-⑥ 下次运行时
-   buildSessionContext() → 用 CompactionSummaryMessage 替换旧消息
-   convertToLlm → 摘要翻译成 UserMessage 发给 LLM
+⑥ 重建 session context / 恢复（按触发原因）
+   buildSessionContext() → summary message + firstKeptEntryId 后缀
+   threshold / 成功 stop overflow：不重试已完成响应
+   overflow error / recoverable length：至多 continue 一次
 ```
 
 ---
@@ -485,7 +504,7 @@ UI 可以订阅这些事件来显示"正在压缩上下文..."的进度提示。
 
 切点排除 `toolResult` 是因为协议约束——toolResult 必须紧跟 toolCall，否则模型会"调了工具但找不到结果"。这是个不可妥协的硬约束。
 
-> 实现：`packages/coding-agent/src/core/compaction/compaction.ts` 的 `findCutPoint`（约 L392）
+> 实现：`packages/coding-agent/src/core/compaction/compaction.ts` 的 `findCutPoint` 与 `findValidCutPoints`
 
 ### 2. 结构化摘要：用固定模板对抗 LLM 的"自由发挥"
 
@@ -495,21 +514,21 @@ UI 可以订阅这些事件来显示"正在压缩上下文..."的进度提示。
 
 加上增量更新（`UPDATE_SUMMARIZATION_PROMPT`）——多次压缩时新摘要是在旧摘要基础上更新，不是从零重写。这避免了"每次压缩摘要漂移一点"的累积误差。
 
-**这是用 prompt 设计对抗 LLM 认知偏差的范例**——固定模板 + 增量更新 = 让 LLM 一次性"想起"和"组织"信息的能力受到结构约束。
+**这是用 prompt 设计约束摘要结构的范例**——固定模板 + 增量更新为模型提供了需要覆盖的信息维度；这是一种设计意图，不等于摘要无损，也没有在本章测量它对遗漏率的改善。
 
-> 实现：`packages/coding-agent/src/core/compaction/compaction.ts` 的 `SUMMARIZATION_PROMPT`（约 L460）与 `UPDATE_SUMMARIZATION_PROMPT`（约 L493）
+> 实现：`packages/coding-agent/src/core/compaction/compaction.ts` 的 `SUMMARIZATION_PROMPT` 与 `UPDATE_SUMMARIZATION_PROMPT`
 
 ### 3. 文件跟踪累积：编码 Agent 的领域特定知识
 
 `extractFileOperations` 从两个来源累积文件列表：
-1. 上一次压缩的 `details.readFiles` / `modifiedFiles`
-2. 这次被压缩的消息里所有工具调用涉及的文件（read 工具 → readFiles，edit/write 工具 → modifiedFiles）
+1. 上一次由 Pi 生成的压缩结果的 `details.readFiles` / `modifiedFiles`
+2. 这次被压缩消息中的 `read`、`edit`、`write` 工具调用
 
-最终用 `formatFileOperations` 把这两个列表以 `<read-files>...</read-files>` 和 `<modified-files>...</modified-files>` 标签附加到摘要末尾。
+最终把只读文件和已写入 / 编辑文件分别用 `formatFileOperations` 格式化为 `<read-files>...</read-files>` 与 `<modified-files>...</modified-files>`，再附加到摘要末尾。已经修改的文件不会同时保留在只读列表中。
 
 为什么单独跟踪文件？因为对编码 Agent 来说，"**改过哪些文件**"是至关重要的元信息——比"对话里讨论过什么"更精确、更可验证。LLM 看到这个列表，知道哪些文件已经被项目触碰过，避免重复读、避免覆盖他人改动。这是一种"领域知识嵌入到通用机制"的做法——压缩算法本身是通用的，但通过 `details` 字段承载领域特定信息。
 
-> 实现：`packages/coding-agent/src/core/compaction/compaction.ts` 的 `extractFileOperations`（约 L41）；标签格式化在 `utils.ts` 的 `formatFileOperations`
+> 实现：`packages/coding-agent/src/core/compaction/compaction.ts` 的 `extractFileOperations` 与 `computeFileLists`；标签格式化在 `packages/coding-agent/src/core/compaction/utils.ts` 的 `formatFileOperations`
 
 ---
 
@@ -524,9 +543,9 @@ Session Tree 是什么？为什么对话历史不是线性数组而是一棵树�
 ---
 
 > **本章关键源码索引**：
-> - `packages/coding-agent/src/core/compaction/compaction.ts` — 核心算法（findCutPoint、prepareCompaction、shouldCompact）
-> - `packages/coding-agent/src/core/compaction/compaction.ts:256-296` — `estimateTokens`（chars/4 启发式估算）
-> - `packages/coding-agent/src/core/compaction/utils.ts` — 其他工具函数（消息序列化等）
-> - `packages/coding-agent/src/core/session-manager.ts` — CompactionEntry 定义 + buildSessionContext
-> - `packages/coding-agent/src/core/messages.ts` — CompactionSummaryMessage
-> - `packages/coding-agent/src/core/agent-session.ts` — 自动压缩集成（agent_end 后触发）
+> - `packages/coding-agent/src/core/compaction/compaction.ts` — `shouldCompact`、`estimateContextTokens`、`estimateTokens`、`findCutPoint`、`prepareCompaction`、`compact`
+> - `packages/coding-agent/src/core/compaction/utils.ts` — `serializeConversation`、文件操作跟踪、`completeSummarization`
+> - `packages/ai/src/utils/overflow.ts` — `isContextOverflow`、`isRecoverableLength`
+> - `packages/coding-agent/src/core/session-manager.ts` — `CompactionEntry`、`buildSessionContext`、`firstKeptEntryId` 路径选择
+> - `packages/coding-agent/src/core/messages.ts` — `createCompactionSummaryMessage`、`convertToLlm`
+> - `packages/coding-agent/src/core/agent-session.ts` — `_checkCompaction`、`_runAutoCompaction`、prompt 前补查与 overflow recovery

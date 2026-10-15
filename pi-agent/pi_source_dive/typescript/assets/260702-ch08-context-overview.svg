@@ -15,7 +15,7 @@
       <rect x="40" y="32" width="460" height="76" rx="6" fill="rgba(28,25,23,0.04)" stroke="rgba(28,25,23,0.20)" stroke-width="1"/>
       <text x="60" y="58" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace" letter-spacing="0.12em">LLM 上下文窗口（固定）</text>
       <rect x="60" y="68" width="420" height="24" rx="3" fill="rgba(28,25,23,0.10)"/>
-      <text x="270" y="84" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle" font-weight="600">Claude 200K · GPT 128K · 硬上限</text>
+      <text x="270" y="84" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle" font-weight="600">contextWindow · 随当前模型与配置变化</text>
     </g>
 
     <g>
@@ -36,7 +36,7 @@
       <rect x="40" y="148" width="1000" height="200" rx="8" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
       <rect x="40" y="148" width="1000" height="40" rx="8" fill="rgba(181,82,58,0.06)"/>
       <text x="60" y="174" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">输入侧 · 送进 LLM 之前</text>
-      <text x="1020" y="174" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" text-anchor="end">EACH PROMPT</text>
+      <text x="1020" y="174" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" text-anchor="end">INPUT / ASSEMBLY</text>
 
       <!-- ① truncate -->
       <g transform="translate(60, 208)">
@@ -53,7 +53,7 @@
         <rect x="0" y="0" width="460" height="124" rx="6" fill="rgba(45,110,60,0.04)" stroke="rgba(45,110,60,0.50)" stroke-width="1"/>
         <text x="20" y="24" fill="#2d6e3c" font-size="10" font-family="'Geist Mono', monospace">② 加法</text>
         <text x="20" y="48" fill="#1c1917" font-size="14" font-weight="600" font-family="'Geist', sans-serif">系统提示词组装</text>
-        <text x="20" y="68" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">CLAUDE.md 向上递归 + Skills 懒加载</text>
+        <text x="20" y="68" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">上下文文件向上查找 + Skills 懒加载</text>
         <text x="20" y="88" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">XML 包装让 LLM 理解项目规范</text>
         <text x="20" y="108" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">让 LLM 自动知道"用 pnpm 不用 npm"</text>
       </g>
@@ -67,16 +67,16 @@
       <rect x="40" y="404" width="1000" height="200" rx="8" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
       <rect x="40" y="404" width="1000" height="40" rx="8" fill="rgba(28,25,23,0.04)"/>
       <text x="60" y="430" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif">历史侧 · 长对话管理</text>
-      <text x="1020" y="430" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace" text-anchor="end">THRESHOLD / BRANCH</text>
+      <text x="1020" y="430" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace" text-anchor="end">THRESHOLD / OPTIONAL BRANCH</text>
 
       <!-- ③ compaction -->
       <g transform="translate(60, 464)">
         <rect x="0" y="0" width="460" height="124" rx="6" fill="rgba(181,82,58,0.04)" stroke="rgba(181,82,58,0.50)" stroke-width="1"/>
         <text x="20" y="24" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">③ 压缩（独立成章 · 第 9 章）</text>
         <text x="20" y="48" fill="#1c1917" font-size="14" font-weight="600" font-family="'Geist', sans-serif">Compaction</text>
-        <text x="20" y="68" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">阈值触发：contextTokens &gt; window − reserve</text>
+        <text x="20" y="68" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">阈值：contextTokens &gt; contextWindow − reserve</text>
         <text x="20" y="88" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">旧消息 → 6 section 结构化摘要</text>
-        <text x="20" y="108" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">线性对话过长时腾出空间</text>
+        <text x="20" y="108" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">AgentSession 还会检查 overflow / length recovery</text>
       </g>
 
       <!-- ④ branch-summary -->
@@ -84,8 +84,8 @@
         <rect x="0" y="0" width="460" height="124" rx="6" fill="rgba(45,110,60,0.04)" stroke="rgba(45,110,60,0.50)" stroke-width="1"/>
         <text x="20" y="24" fill="#2d6e3c" font-size="10" font-family="'Geist Mono', monospace">④ 加法 · LCA 算法</text>
         <text x="20" y="48" fill="#1c1917" font-size="14" font-weight="600" font-family="'Geist', sans-serif">Branch Summarization</text>
-        <text x="20" y="68" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">用户切换会话树分支时触发</text>
-        <text x="20" y="88" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">给被抛弃分支生成精简摘要（2048 tok）</text>
+        <text x="20" y="68" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">导航流程可按需请求摘要</text>
+        <text x="20" y="88" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">只摘要旧路径独有部分（2048 tok）</text>
         <text x="20" y="108" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">让新分支知道旧分支试过什么</text>
       </g>
     </g>

@@ -18,7 +18,7 @@
     <text x="480" y="78" fill="#1c1917" font-size="14" font-weight="600" font-family="'Geist', sans-serif"
           text-anchor="middle">AgentMessage</text>
     <text x="480" y="96" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace"
-          text-anchor="middle">context.messages 数组</text>
+          text-anchor="middle">coding-agent context.messages 数组</text>
 
     <!-- Two branches down -->
     <line x1="480" y1="106" x2="480" y2="140" stroke="#57534e" stroke-width="1"/>
@@ -69,7 +69,7 @@
     <text x="740" y="200" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
           text-anchor="middle">CustomAgentMessages</text>
     <text x="740" y="216" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
-          text-anchor="middle">LLM 不认识 · 内部状态</text>
+          text-anchor="middle">coding-agent 示例 · 4 种扩展</text>
 
     <!-- 4 custom message types (grid) -->
     <g>
@@ -113,7 +113,7 @@
     </g>
 
     <!-- Annotation: 内部 7 种 -->
-    <rect x="60" y="380" width="840" height="2" fill="rgba(28,25,23,0.15)"/>
+    <rect x="60" y="390" width="840" height="2" fill="rgba(28,25,23,0.15)"/>
 
     <!-- convertToLlm boundary line -->
     <line x1="60" y1="420" x2="900" y2="420" stroke="#b5523a" stroke-width="1.2" stroke-dasharray="6,4"/>
@@ -121,8 +121,8 @@
     <text x="480" y="424" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
           text-anchor="middle" letter-spacing="0.08em">convertToLlm() 翻译边界</text>
 
-    <text x="60" y="408" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">↑ Agent 内部（7 种）</text>
-    <text x="900" y="408" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">↓ LLM 看到的（3 种）</text>
+    <text x="60" y="408" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">↑ coding-agent 内部（7 种）</text>
+    <text x="900" y="408" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="end">↓ pi-ai Message（3 种）</text>
 
     <!-- Bottom: LLM sees only 3 -->
     <rect x="280" y="450" width="400" height="80" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
@@ -151,9 +151,9 @@
           letter-spacing="0.14em">PRINCIPLE · 内富外严</text>
 
     <text x="80" y="606" fill="#1c1917" font-size="11" font-family="'Instrument Serif', 'Source Han Serif SC', serif" font-style="italic">
-      内部用 7 种消息类型自由表达 → LLM 边界翻译成 3 种标准格式
+      coding-agent 示例内部 7 种消息 → pi-ai 边界格式化为 3 种标准 Message
     </text>
     <text x="80" y="624" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">
-      Agent 能记录自己的内部状态（压缩、执行详情、分支），LLM 不需要认识这些——它只懂标准协议。
+      此图中的 7 种是 coding-agent 示例；其它应用可注册不同扩展。Provider 请求格式还会由 pi-ai 转换层处理。
     </text>
   </svg>

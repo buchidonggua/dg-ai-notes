@@ -5,7 +5,7 @@ const modules = defineCollection({
   type: 'content',
   schema: z.object({
     title: z.string(),
-    // M01–M10 = 源码精读篇；P01–P07 = 实战上手篇
+    // M01–M12 = 源码精读篇；P01–P07 = 实战上手篇
     module: z.string().regex(/^[MP]\d+(\.\d+)?$/),
     displayOrder: z.number(),
     status: z.enum(['published', 'draft', 'planned']),

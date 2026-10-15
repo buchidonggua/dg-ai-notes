@@ -1,165 +1,39 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<title>stopReason 驱动的循环决策流程</title>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --paper: #faf7f2;
-    --ink: #1c1917;
-    --muted: #57534e;
-    --soft: #a8a29e;
-    --rule: rgba(28,25,23,0.10);
-    --accent: #b5523a;
-    --accent-tint: rgba(181,82,58,0.10);
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--paper);
-    color: var(--ink);
-    font-family: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-    padding: 3rem 1.5rem 2rem;
-    line-height: 1.5;
-  }
-  .container { max-width: 1080px; margin: 0 auto; }
-  .eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px;
-    letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
-  h1 { font-family: 'Instrument Serif', 'Source Han Serif SC', serif; font-weight: 400;
-    font-size: 32px; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
-  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 2rem; max-width: 62ch; }
-  .frame { background: rgba(28,25,23,0.02); border: 1px solid var(--rule);
-    border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
-  svg { display: block; max-width: 100%; height: auto; }
-  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
-    font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--soft);
-    letter-spacing: 0.1em; display: flex; justify-content: space-between; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>260702-ch03-stopreason-flowchart</title>
+  <style>html,body{margin:0;background:#f5f5f4}body{display:grid;place-items:center;min-height:100vh}svg{width:min(100%,1200px);height:auto;background:white}</style>
 </head>
 <body>
-<div class="container">
-  <p class="eyebrow">PI-AGENT · 第 3 章 · FLOWCHART</p>
-  <h1>stopReason 驱动的循环决策流程</h1>
-  <p class="subtitle">循环的"油门和刹车"集中在一个字段上。五种 stopReason 来自两个地方——三种来自模型 API，两种来自框架的流式层注入。</p>
-
-  <div class="frame">
-  <svg viewBox="0 0 960 580" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-        <polygon points="0 0, 8 3, 0 6" fill="#57534e"/>
-      </marker>
-      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-        <polygon points="0 0, 8 3, 0 6" fill="#b5523a"/>
-      </marker>
-    </defs>
-
-    <rect width="960" height="580" fill="#faf7f2"/>
-
-    <!-- Top: AssistantMessage node -->
-    <rect x="320" y="24" width="320" height="64" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
-    <text x="480" y="48" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
-          text-anchor="middle">模型返回 AssistantMessage</text>
-    <text x="480" y="68" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace"
-          text-anchor="middle">message.stopReason</text>
-
-    <line x1="480" y1="88" x2="480" y2="116" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
-
-    <!-- Decision diamond -->
-    <polygon points="480,120 600,180 480,240 360,180"
-             fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.2"/>
-    <text x="480" y="176" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
-          text-anchor="middle">检查 stopReason</text>
-    <text x="480" y="194" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
-          text-anchor="middle">switch</text>
-
-    <!-- Three branches -->
-    <!-- Left: toolUse -->
-    <line x1="360" y1="180" x2="200" y2="180" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
-    <rect x="120" y="168" width="76" height="24" rx="2" fill="rgba(181,82,58,0.10)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
-    <text x="158" y="184" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
-          text-anchor="middle" letter-spacing="0.08em">toolUse</text>
-
-    <line x1="158" y1="192" x2="158" y2="260" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
-
-    <rect x="48" y="264" width="220" height="76" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
-    <text x="158" y="288" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
-          text-anchor="middle">继续转</text>
-    <text x="158" y="306" fill="#57534e" font-size="9" font-family="'Geist', sans-serif"
-          text-anchor="middle">执行这批工具</text>
-    <text x="158" y="322" fill="#57534e" font-size="9" font-family="'Geist', sans-serif"
-          text-anchor="middle">把结果喂回模型</text>
-
-    <!-- loop back -->
-    <path d="M 48 302 Q 16 302 16 200 Q 16 56 320 56"
-          fill="none" stroke="#b5523a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow-accent)"/>
-    <rect x="20" y="170" width="60" height="14" rx="2" fill="#faf7f2"/>
-    <text x="50" y="180" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
-          text-anchor="middle" letter-spacing="0.06em">下一 Turn</text>
-
-    <!-- Middle: stop / length -->
-    <line x1="480" y1="240" x2="480" y2="280" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
-    <rect x="400" y="268" width="160" height="24" rx="2" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
-    <text x="480" y="284" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace"
-          text-anchor="middle" letter-spacing="0.08em">stop · length</text>
-
-    <line x1="480" y1="292" x2="480" y2="320" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
-
-    <rect x="370" y="324" width="220" height="76" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
-    <text x="480" y="348" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
-          text-anchor="middle">准备停</text>
-    <text x="480" y="366" fill="#57534e" font-size="9" font-family="'Geist', sans-serif"
-          text-anchor="middle">检查 followUp / pending 队列</text>
-    <text x="480" y="382" fill="#57534e" font-size="9" font-family="'Geist', sans-serif"
-          text-anchor="middle">两个都空 → 正常退出</text>
-
-    <line x1="480" y1="400" x2="480" y2="448" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
-    <rect x="380" y="452" width="200" height="32" rx="4" fill="#faf7f2" stroke="#b5523a" stroke-width="1"/>
-    <text x="480" y="472" fill="#b5523a" font-size="11" font-family="'Geist Mono', monospace"
-          text-anchor="middle" letter-spacing="0.08em">agent_end（正常）</text>
-
-    <!-- Right: error / aborted -->
-    <line x1="600" y1="180" x2="760" y2="180" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
-    <rect x="768" y="168" width="100" height="24" rx="2" fill="rgba(181,82,58,0.10)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
-    <text x="818" y="184" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace"
-          text-anchor="middle" letter-spacing="0.08em">error · aborted</text>
-
-    <line x1="818" y1="192" x2="818" y2="260" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
-
-    <rect x="692" y="264" width="252" height="76" rx="6" fill="rgba(28,25,23,0.05)" stroke="#1c1917" stroke-width="1.2"/>
-    <text x="818" y="288" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
-          text-anchor="middle">硬停止（fail fast）</text>
-    <text x="818" y="306" fill="#57534e" font-size="9" font-family="'Geist', sans-serif"
-          text-anchor="middle">立即退出整个循环</text>
-    <text x="818" y="322" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif"
-          text-anchor="middle">不检查 followUp</text>
-
-    <line x1="818" y1="340" x2="818" y2="448" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
-    <rect x="718" y="452" width="200" height="32" rx="4" fill="#faf7f2" stroke="#b5523a" stroke-width="1.2"/>
-    <text x="818" y="472" fill="#b5523a" font-size="11" font-family="'Geist Mono', monospace"
-          text-anchor="middle" letter-spacing="0.08em">agent_end（硬停）</text>
-
-    <!-- source annotation -->
-    <line x1="40" y1="510" x2="920" y2="510" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
-    <text x="40" y="530" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
-          letter-spacing="0.14em">SOURCE OF stopReason</text>
-
-    <rect x="40" y="540" width="240" height="24" rx="2" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
-    <text x="56" y="556" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif">来自模型 API</text>
-    <text x="180" y="556" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace">stop·length·toolUse</text>
-
-    <rect x="320" y="540" width="280" height="24" rx="2" fill="rgba(181,82,58,0.06)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
-    <text x="336" y="556" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif">框架流式层注入</text>
-    <text x="448" y="556" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace">error·aborted</text>
-
-    <text x="640" y="556" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">关键规则：模型不会说"我完成了"——</text>
-    <text x="640" y="568" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">没有 ToolCall 即视为本轮结束</text>
-  </svg>
-  </div>
-
-  <div class="footer">
-    <span>PI-AGENT · 项目原理二次整理版</span>
-    <span>260702 · CH03 · FLOWCHART</span>
-  </div>
-</div>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="610" viewBox="0 0 960 610" role="img" aria-labelledby="title desc">
+  <title id="title">Agent Loop stopReason 决策流程</title>
+  <desc id="desc">错误与取消直接结束；其他状态检查工具调用内容。length 工具调用生成失败结果后继续模型请求；正常工具调用进入执行，之后检查队列和收尾钩子。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#57534e"/></marker>
+    <marker id="redArrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#b5523a"/></marker>
+    <style>text{font-family:Arial,'Microsoft YaHei',sans-serif;fill:#1c1917}.label{font-size:14px}.small{font-size:12px}.tiny{font-size:11px}.node{fill:#fafaf9;stroke:#57534e;stroke-width:1.4}.decision{fill:#f5f5f4;stroke:#57534e;stroke-width:1.4}.red{fill:#fff7f5;stroke:#b5523a;stroke-width:1.4}.green{fill:#f6fbf6;stroke:#2d6e3c;stroke-width:1.4}</style>
+  </defs>
+  <rect width="960" height="610" fill="#fff"/>
+  <text x="480" y="32" text-anchor="middle" font-size="21" font-weight="700">Agent Loop：先看 stopReason，再看消息内容</text>
+  <rect class="node" x="350" y="54" width="260" height="46" rx="10"/><text class="label" x="480" y="82" text-anchor="middle">收到 AssistantMessage</text>
+  <path d="M480 100v28" stroke="#57534e" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <polygon class="decision" points="480,130 590,175 480,220 370,175"/><text class="label" x="480" y="171" text-anchor="middle">stopReason 是</text><text class="label" x="480" y="190" text-anchor="middle">error / aborted？</text>
+  <path d="M370 175H180v48" fill="none" stroke="#b5523a" stroke-width="1.4" marker-end="url(#redArrow)"/><text class="small" x="260" y="165" fill="#b5523a">是</text>
+  <rect class="red" x="60" y="225" width="240" height="65" rx="10"/><text class="label" x="180" y="252" text-anchor="middle">发 turn_end + agent_end</text><text class="small" x="180" y="273" text-anchor="middle">低层 run 直接结束；无自动 retry</text>
+  <path d="M480 220v33" stroke="#57534e" stroke-width="1.4" marker-end="url(#arrow)"/><text class="small" x="493" y="242">否</text>
+  <polygon class="decision" points="480,255 590,300 480,345 370,300"/><text class="label" x="480" y="296" text-anchor="middle">消息内容有</text><text class="label" x="480" y="315" text-anchor="middle">toolCall 块？</text>
+  <path d="M590 300H830v32" fill="none" stroke="#57534e" stroke-width="1.4" marker-end="url(#arrow)"/><text class="small" x="635" y="289">有</text>
+  <polygon class="decision" points="830,335 900,372 830,409 760,372"/><text class="small" x="830" y="369" text-anchor="middle">length？</text><text class="tiny" x="830" y="386" text-anchor="middle">含 toolCall</text>
+  <path d="M760 372h-90v43" fill="none" stroke="#b5523a" stroke-width="1.4" marker-end="url(#redArrow)"/><text class="tiny" x="700" y="361">是</text>
+  <rect class="red" x="560" y="418" width="220" height="68" rx="10"/><text class="label" x="670" y="445" text-anchor="middle">逐个生成失败 ToolResult</text><text class="small" x="670" y="466" text-anchor="middle">不执行截断参数；供模型后续纠正</text>
+  <path d="M830 409V555H623" fill="none" stroke="#2d6e3c" stroke-width="1.4" marker-end="url(#arrow)"/><text class="tiny" x="842" y="438">否：执行工具批次</text>
+  <path d="M670 486v44h-90" fill="none" stroke="#57534e" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <rect class="green" x="350" y="530" width="270" height="50" rx="10"/><text class="label" x="485" y="552" text-anchor="middle">追加工具结果，检查下一轮条件</text><text class="tiny" x="485" y="570" text-anchor="middle">批次 terminate 等条件另行决定是否续跑</text>
+  <path d="M370 300H190v147" fill="none" stroke="#57534e" stroke-width="1.4" marker-end="url(#arrow)"/><text class="small" x="255" y="318">无</text>
+  <rect class="node" x="60" y="450" width="260" height="80" rx="10"/><text class="label" x="190" y="478" text-anchor="middle">检查队列与收尾条件</text><text class="small" x="190" y="500" text-anchor="middle">steering / follow-up / stop hook</text><text class="tiny" x="190" y="518" text-anchor="middle">队列可开启后续 Turn</text>
+  <text class="tiny" x="480" y="600" text-anchor="middle" fill="#78716c">pending / deferred 是 StopReason 联合类型成员；核心 Loop 不为它们实现自动等待或恢复。</text>
+</svg>
 </body>
 </html>

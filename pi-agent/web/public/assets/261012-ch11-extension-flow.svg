@@ -1,0 +1,103 @@
+<svg viewBox="0 0 1200 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">第11章 扩展注册、绑定与消费闭环</title>
+  <desc id="desc">从扩展工厂注册到 AgentSession 绑定，再从工具调用拦截写回错误结果；下方展示会话切换取消和信任边界。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#57534e"/></marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#2d6e3c"/></marker>
+    <marker id="arrow-accent" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#b5523a"/></marker>
+  </defs>
+  <rect width="1200" height="760" fill="#faf7f2"/>
+  <text x="44" y="38" fill="#57534e" font-size="11" letter-spacing="2" font-family="'Geist Mono',monospace">PI-AGENT · 第 11 章 · EXTENSION LIFECYCLE</text>
+  <text x="44" y="82" fill="#1c1917" font-size="30" font-family="'Instrument Serif','Source Han Serif SC',serif">注册只声明能力，运行时再绑定并消费</text>
+  <text x="44" y="112" fill="#57534e" font-size="13" font-family="'Geist','PingFang SC',sans-serif">tool_call 拦截闭环与 session_before_switch 取消链；不同 emitter 有自己的返回和错误规则。</text>
+
+  <rect x="34" y="146" width="1132" height="303" rx="10" fill="rgba(28,25,23,0.025)" stroke="rgba(28,25,23,0.12)"/>
+  <text x="54" y="174" fill="#57534e" font-size="10" letter-spacing="1.4" font-family="'Geist Mono',monospace">MAIN PATH · TOOL CALL → ERROR RESULT → NEXT MODEL CONTEXT</text>
+
+  <g font-family="'Geist','PingFang SC',sans-serif">
+    <rect x="54" y="204" width="194" height="202" rx="8" fill="#fff" stroke="rgba(28,25,23,0.20)"/>
+    <rect x="54" y="204" width="194" height="34" rx="8" fill="rgba(181,82,58,0.08)"/>
+    <text x="70" y="226" fill="#b5523a" font-size="11" font-weight="600">① 加载 / 工厂阶段</text>
+    <text x="70" y="264" fill="#1c1917" font-size="12" font-family="'Geist Mono',monospace">Jiti → factory(pi)</text>
+    <text x="70" y="292" fill="#57534e" font-size="11">pi.on() 把 handler</text>
+    <text x="70" y="310" fill="#57534e" font-size="11">存进 Extension.handlers</text>
+    <text x="70" y="346" fill="#b5523a" font-size="10">操作型 runtime API</text>
+    <text x="70" y="365" fill="#57534e" font-size="10">此时仍可能是 throwing stub</text>
+    <text x="70" y="389" fill="#a8a29e" font-size="9" font-family="'Geist Mono',monospace">loader.ts</text>
+
+    <rect x="276" y="204" width="194" height="202" rx="8" fill="#fff" stroke="rgba(28,25,23,0.20)"/>
+    <rect x="276" y="204" width="194" height="34" rx="8" fill="rgba(45,110,60,0.08)"/>
+    <text x="292" y="226" fill="#2d6e3c" font-size="11" font-weight="600">② 创建并绑定运行时</text>
+    <text x="292" y="264" fill="#1c1917" font-size="11" font-family="'Geist Mono',monospace">AgentSession._buildRuntime()</text>
+    <text x="292" y="290" fill="#57534e" font-size="11">_bindExtensionCore()</text>
+    <text x="292" y="316" fill="#2d6e3c" font-size="11" font-family="'Geist Mono',monospace">runner.bindCore(...)</text>
+    <text x="292" y="350" fill="#57534e" font-size="10">再绑定 UI / mode / command</text>
+    <text x="292" y="369" fill="#57534e" font-size="10">并发出 session_start</text>
+    <text x="292" y="389" fill="#a8a29e" font-size="9" font-family="'Geist Mono',monospace">agent-session.ts</text>
+
+    <rect x="498" y="204" width="194" height="202" rx="8" fill="#fff" stroke="rgba(28,25,23,0.20)"/>
+    <rect x="498" y="204" width="194" height="34" rx="8" fill="rgba(28,25,23,0.04)"/>
+    <text x="514" y="226" fill="#1c1917" font-size="11" font-weight="600">③ 准备工具调用</text>
+    <text x="514" y="264" fill="#1c1917" font-size="11" font-family="'Geist Mono',monospace">prepareToolCall()</text>
+    <text x="514" y="290" fill="#57534e" font-size="11">查找工具、准备参数、</text>
+    <text x="514" y="308" fill="#57534e" font-size="11">schema 校验，然后进入</text>
+    <text x="514" y="334" fill="#1c1917" font-size="11" font-family="'Geist Mono',monospace">beforeToolCall</text>
+    <text x="514" y="359" fill="#57534e" font-size="10">扩展看到已验证的 args</text>
+    <text x="514" y="389" fill="#a8a29e" font-size="9" font-family="'Geist Mono',monospace">agent-loop.ts</text>
+
+    <rect x="720" y="204" width="194" height="202" rx="8" fill="#fff" stroke="rgba(181,82,58,0.42)" stroke-width="1.3"/>
+    <rect x="720" y="204" width="194" height="34" rx="8" fill="rgba(181,82,58,0.10)"/>
+    <text x="736" y="226" fill="#b5523a" font-size="11" font-weight="600">④ 扩展返回 block</text>
+    <text x="736" y="264" fill="#1c1917" font-size="11" font-family="'Geist Mono',monospace">runner.emitToolCall()</text>
+    <text x="736" y="292" fill="#57534e" font-size="11">handler 返回 reason</text>
+    <text x="736" y="318" fill="#b5523a" font-size="11" font-family="'Geist Mono',monospace">{ block: true }</text>
+    <text x="736" y="350" fill="#57534e" font-size="10">跳过 execute；不再调用</text>
+    <text x="736" y="369" fill="#57534e" font-size="10">后续 tool_call handler</text>
+    <text x="736" y="389" fill="#a8a29e" font-size="9" font-family="'Geist Mono',monospace">runner.ts → Agent Loop</text>
+
+    <rect x="942" y="204" width="194" height="202" rx="8" fill="#fff" stroke="rgba(45,110,60,0.38)" stroke-width="1.3"/>
+    <rect x="942" y="204" width="194" height="34" rx="8" fill="rgba(45,110,60,0.08)"/>
+    <text x="958" y="226" fill="#2d6e3c" font-size="11" font-weight="600">⑤ 错误结果回到上下文</text>
+    <text x="958" y="264" fill="#1c1917" font-size="11" font-family="'Geist Mono',monospace">createErrorToolResult()</text>
+    <text x="958" y="292" fill="#57534e" font-size="11">isError = true，保留</text>
+    <text x="958" y="310" fill="#57534e" font-size="11">toolCallId / toolName</text>
+    <text x="958" y="340" fill="#2d6e3c" font-size="11">ToolResult 写入 messages</text>
+    <text x="958" y="365" fill="#57534e" font-size="10">下一次请求可读到阻止原因</text>
+    <text x="958" y="389" fill="#a8a29e" font-size="9" font-family="'Geist Mono',monospace">createToolResultMessage()</text>
+  </g>
+  <line x1="249" y1="305" x2="270" y2="305" stroke="#57534e" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <line x1="471" y1="305" x2="492" y2="305" stroke="#57534e" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <line x1="693" y1="305" x2="714" y2="305" stroke="#b5523a" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+  <line x1="915" y1="305" x2="936" y2="305" stroke="#2d6e3c" stroke-width="1.4" marker-end="url(#arrow-green)"/>
+
+  <rect x="34" y="474" width="550" height="236" rx="10" fill="rgba(28,25,23,0.025)" stroke="rgba(28,25,23,0.12)"/>
+  <text x="54" y="503" fill="#57534e" font-size="10" letter-spacing="1.2" font-family="'Geist Mono',monospace">SECOND PATH · CANCEL BEFORE SESSION TEARDOWN</text>
+  <rect x="54" y="530" width="144" height="112" rx="7" fill="#fff" stroke="rgba(28,25,23,0.20)"/>
+  <text x="68" y="555" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist','PingFang SC',sans-serif">new / switch</text>
+  <text x="68" y="579" fill="#57534e" font-size="10" font-family="'Geist Mono',monospace">emitBeforeSwitch()</text>
+  <text x="68" y="609" fill="#a8a29e" font-size="9" font-family="'Geist Mono',monospace">agent-session-runtime.ts</text>
+  <line x1="199" y1="586" x2="220" y2="586" stroke="#57534e" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <rect x="226" y="530" width="150" height="112" rx="7" fill="#fff" stroke="rgba(181,82,58,0.40)"/>
+  <text x="240" y="555" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist','PingFang SC',sans-serif">handler 返回</text>
+  <text x="240" y="584" fill="#b5523a" font-size="12" font-family="'Geist Mono',monospace">{ cancel: true }</text>
+  <text x="240" y="612" fill="#57534e" font-size="10" font-family="'Geist','PingFang SC',sans-serif">session_before_switch</text>
+  <line x1="377" y1="586" x2="398" y2="586" stroke="#b5523a" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <rect x="404" y="530" width="160" height="112" rx="7" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.2"/>
+  <text x="420" y="556" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist','PingFang SC',sans-serif">提前返回</text>
+  <text x="420" y="582" fill="#57534e" font-size="10" font-family="'Geist','PingFang SC',sans-serif">abort / dispose / runtime</text>
+  <text x="420" y="601" fill="#57534e" font-size="10" font-family="'Geist','PingFang SC',sans-serif">替换尚未执行</text>
+  <text x="420" y="626" fill="#a8a29e" font-size="9" font-family="'Geist Mono',monospace">cancel 不是异常</text>
+
+  <rect x="604" y="474" width="562" height="236" rx="10" fill="#fff" stroke="rgba(28,25,23,0.16)"/>
+  <text x="628" y="503" fill="#57534e" font-size="10" letter-spacing="1.2" font-family="'Geist Mono',monospace">BOUNDARIES · FOLLOW EACH EMITTER</text>
+  <circle cx="637" cy="544" r="4" fill="#b5523a"/>
+  <text x="652" y="548" fill="#1c1917" font-size="11" font-family="'Geist','PingFang SC',sans-serif">tool_call handler 异常会沿 prepareToolCall 的 catch</text>
+  <text x="652" y="567" fill="#57534e" font-size="10" font-family="'Geist','PingFang SC',sans-serif">转换成错误结果；一般 emit / context 等路径有各自处理规则。</text>
+  <circle cx="637" cy="603" r="4" fill="#b5523a"/>
+  <text x="652" y="607" fill="#1c1917" font-size="11" font-family="'Geist','PingFang SC',sans-serif">ExtensionContext 是 API facade，不是安全沙箱</text>
+  <text x="652" y="626" fill="#57534e" font-size="10" font-family="'Geist','PingFang SC',sans-serif">扩展仍在宿主进程权限内；pi.exec() 可运行外部命令。</text>
+  <line x1="628" y1="652" x2="1140" y2="652" stroke="rgba(28,25,23,0.10)"/>
+  <text x="628" y="677" fill="#2d6e3c" font-size="10" font-weight="600" font-family="'Geist','PingFang SC',sans-serif">注册时序决定 API 可用性；消费者决定事件返回值的真正含义。</text>
+  <text x="34" y="740" fill="#a8a29e" font-size="9" font-family="'Geist Mono',monospace">SOURCE SNAPSHOT · pi-main v0.84.3 · 2026-10-12</text>
+  <text x="1166" y="740" fill="#a8a29e" font-size="9" text-anchor="end" font-family="'Geist Mono',monospace">261012-ch11-extension-flow</text>
+</svg>

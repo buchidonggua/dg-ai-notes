@@ -29,7 +29,7 @@
 <div class="container">
   <p class="eyebrow">PI-AGENT · 第 5 章 · SEQUENCE</p>
   <h1>并行 vs 串行：三阶段设计</h1>
-  <p class="subtitle">模型一口气要求多个工具时，Pi 用"一票否决"决定整体串行还是并行。并行模式下还有精妙的三阶段设计——准备顺序、执行并行、事件有序。</p>
+  <p class="subtitle">只要批次中有工具声明 sequential，整批串行；否则准备逐个 await，已准备的调用并发执行，end 事件按完成顺序、结果消息按原调用顺序。</p>
 
   <div class="frame">
   <svg viewBox="0 0 960 580" xmlns="http://www.w3.org/2000/svg">
@@ -87,40 +87,38 @@
     </g>
 
     <!-- Stage 2: 执行（并行） -->
-    <text x="60" y="324" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace">阶段 2 · 执行（并行）★</text>
+    <text x="60" y="324" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace">阶段 2 · 执行与收尾（并发）★</text>
     <g>
       <rect x="60" y="332" width="120" height="56" rx="4" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
       <text x="120" y="354" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">A.execute()</text>
-      <text x="120" y="372" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">Promise.all</text>
-      <text x="120" y="384" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">同时跑</text>
+      <text x="120" y="372" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">execute → afterToolCall</text>
+      <text x="120" y="384" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">end 随完成发出</text>
     </g>
     <g>
       <rect x="188" y="332" width="120" height="56" rx="4" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
       <text x="248" y="354" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">B.execute()</text>
-      <text x="248" y="372" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">Promise.all</text>
-      <text x="248" y="384" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">同时跑</text>
+      <text x="248" y="372" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">execute → afterToolCall</text>
+      <text x="248" y="384" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">end 随完成发出</text>
     </g>
     <g>
       <rect x="316" y="332" width="120" height="56" rx="4" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1"/>
       <text x="376" y="354" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">C.execute()</text>
-      <text x="376" y="372" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">Promise.all</text>
-      <text x="376" y="384" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">同时跑</text>
+      <text x="376" y="372" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">execute → afterToolCall</text>
+      <text x="376" y="384" fill="#57534e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">end 随完成发出</text>
     </g>
 
     <!-- Stage 3: 事件（有序） -->
-    <text x="60" y="420" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace">阶段 3 · 事件（有序）</text>
+    <text x="60" y="420" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace">阶段 3 · 结果消息（原调用顺序）</text>
     <g>
       <rect x="60" y="428" width="376" height="32" rx="4" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="0.8"/>
-      <text x="248" y="448" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">
-        end 按完成顺序 · result 按调用顺序（A→B→C）
-      </text>
+      <text x="248" y="448" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">ToolResultMessage 按 A→B→C 原调用顺序</text>
     </g>
 
     <!-- Why -->
     <rect x="60" y="488" width="376" height="68" rx="4" fill="rgba(181,82,58,0.04)" stroke="rgba(181,82,58,0.30)" stroke-width="1" stroke-dasharray="4,4"/>
     <text x="80" y="512" fill="#b5523a" font-size="9" font-family="'Geist Mono', monospace" letter-spacing="0.14em">WHY</text>
-    <text x="80" y="532" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">准备阶段必须顺序：B 被拦截了 C 就不该跑</text>
-    <text x="80" y="546" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">结果消息保持顺序：模型依赖调用顺序</text>
+    <text x="80" y="532" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">准备阶段逐个 await；被拦截项有错误结果，后续调用仍继续准备</text>
+    <text x="80" y="546" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">除非 signal 中止；结果消息保留模型原始调用顺序</text>
 
     <!-- ===== RIGHT: Sequential ===== -->
     <rect x="500" y="124" width="440" height="48" rx="6" fill="rgba(28,25,23,0.05)" stroke="#1c1917" stroke-width="1"/>
@@ -163,8 +161,8 @@
     <!-- Why -->
     <rect x="520" y="488" width="376" height="68" rx="4" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.20)" stroke-width="1" stroke-dasharray="4,4"/>
     <text x="540" y="512" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace" letter-spacing="0.14em">WHEN TO USE</text>
-    <text x="540" y="532" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">声明了 executionMode: "sequential"</text>
-    <text x="540" y="546" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">edit 类工具（可能有文件依赖）</text>
+    <text x="540" y="532" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">扩展工具显式声明 executionMode: "sequential"</text>
+    <text x="540" y="546" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">v0.84.3：8 个内置工具均未声明 mode；Edit/Write 按文件排队</text>
   </svg>
   </div>
 

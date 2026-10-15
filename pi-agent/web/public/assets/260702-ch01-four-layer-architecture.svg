@@ -25,7 +25,7 @@
     <text x="616" y="190" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace" letter-spacing="0.10em">PARALLEL · UI</text>
     <text x="616" y="212" fill="#1c1917" font-size="14" font-weight="600" font-family="'Geist', sans-serif">pi-tui</text>
     <text x="616" y="230" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">差分渲染 · 组件系统 · Markdown</text>
-    <text x="616" y="244" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">~12000 行 · 不依赖任何 pi-xxx</text>
+    <text x="616" y="244" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">独立 UI 库 · 不依赖 Agent 内核</text>
 
     <!-- Layer 2: agent-core (middle, focal) -->
     <rect x="80" y="172" width="480" height="100" rx="8" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.4"/>
@@ -33,7 +33,7 @@
     <text x="156" y="200" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
           text-anchor="middle" letter-spacing="0.08em">LAYER 2 · 引擎</text>
     <text x="120" y="232" fill="#1c1917" font-size="16" font-weight="600" font-family="'Geist', sans-serif">pi-agent-core</text>
-    <text x="120" y="254" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">AgentLoop · 工具系统 · 事件流 · Session · Compaction</text>
+    <text x="120" y="254" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">Agent Loop · 工具系统 · 事件流 · 可选宿主接口</text>
 
     <line x1="480" y1="272" x2="480" y2="300" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
     <text x="496" y="290" fill="#57534e" font-size="8" font-family="'Geist Mono', monospace">依赖</text>
@@ -44,7 +44,7 @@
     <text x="156" y="332" fill="#b5523a" font-size="8" font-family="'Geist Mono', monospace"
           text-anchor="middle" letter-spacing="0.08em">LAYER 1 · 模型</text>
     <text x="120" y="364" fill="#1c1917" font-size="16" font-weight="600" font-family="'Geist', sans-serif">pi-ai</text>
-    <text x="120" y="386" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">统一 API · 上下文交接 · 流式 · Token 追踪 · 30+ 提供商</text>
+    <text x="120" y="386" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">统一 API · 上下文交接 · 流式 · Token 追踪 · 多家提供商</text>
 
     <!-- Bottom: 4 run modes -->
     <line x1="80" y1="438" x2="880" y2="438" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
@@ -73,6 +73,6 @@
     </g>
 
     <text x="80" y="540" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
-      依赖方向永远向上——底层对上层一无所知。这是分层架构的核心承诺。
+      依赖由上层指向底层——底层不导入上层产品。这是分层架构的核心承诺。
     </text>
   </svg>

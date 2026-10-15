@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>Session Tree：append-only 的状态变化</title>
+<title>Session Tree：常规操作中的 append-only 状态变化</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -35,8 +35,8 @@
 <body>
 <div class="container">
   <p class="eyebrow">PI-AGENT · 第 10 章 · STATE EVOLUTION</p>
-  <h1>Session Tree：append-only 的状态变化</h1>
-  <p class="subtitle">会话存成一棵 append-only 的树（DAG）。leafId 是当前所在位置的指针。回退只是移动 leafId；追加新消息会创建新分支，旧分支被抛弃但仍在树里——永远不删，这是"不可变"的铁律。</p>
+  <h1>Session Tree：常规操作中的 append-only 状态变化</h1>
+  <p class="subtitle">coding-agent 的 SessionEntry 以 parentId 连成树，leafId 只记录当前内存路径。回退调用 branch() 只移动内存指针；追加新 entry 才写出新分支。常规回退不会删除旧 entry；重开会话时会按文件末尾的 entry 重建 leaf。</p>
 
   <div class="frame">
   <svg viewBox="0 0 1080 640" xmlns="http://www.w3.org/2000/svg">
@@ -98,9 +98,9 @@
     </g>
 
     <!-- arrow between snapshots -->
-    <text x="380" y="240" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
-          letter-spacing="0.10em" text-anchor="middle">用户回退</text>
-    <line x1="370" y1="252" x2="370" y2="280" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
+    <text x="375" y="240" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.10em" text-anchor="middle">回退</text>
+    <line x1="375" y1="252" x2="375" y2="280" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
 
     <!-- ===== Snapshot 2: Branch from A1 ===== -->
     <g>
@@ -137,17 +137,17 @@
       <!-- Description -->
       <line x1="406" y1="368" x2="714" y2="368" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
       <text x="406" y="392" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">说明</text>
-      <text x="406" y="412" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">回退 = 移动 leafId，</text>
-      <text x="406" y="428" fill="#b5523a" font-size="10" font-family="'Geist', sans-serif">不删任何节点（O(1)）</text>
+      <text x="406" y="412" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">回退 = 移动内存 leafId，</text>
+      <text x="406" y="428" fill="#b5523a" font-size="10" font-family="'Geist', sans-serif">旧 entry 保留，指针未落盘</text>
       <text x="406" y="450" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
         A2 仍在树上，只是被抛弃
       </text>
     </g>
 
     <!-- arrow between snapshots -->
-    <text x="750" y="240" fill="#2d6e3c" font-size="9" font-family="'Geist Mono', monospace"
-          letter-spacing="0.10em" text-anchor="middle">追加新消息</text>
-    <line x1="740" y1="252" x2="740" y2="280" stroke="#2d6e3c" stroke-width="1" marker-end="url(#arrow-green)"/>
+    <text x="745" y="240" fill="#2d6e3c" font-size="9" font-family="'Geist Mono', monospace"
+          letter-spacing="0.10em" text-anchor="middle">追加</text>
+    <line x1="745" y1="252" x2="745" y2="280" stroke="#2d6e3c" stroke-width="1" marker-end="url(#arrow-green)"/>
 
     <!-- ===== Snapshot 3: New branch ===== -->
     <g>
@@ -202,7 +202,7 @@
     <line x1="20" y1="500" x2="1060" y2="500" stroke="rgba(28,25,23,0.10)" stroke-width="0.8"/>
 
     <text x="20" y="524" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
-          letter-spacing="0.14em">APPEND-ONLY 铁律</text>
+          letter-spacing="0.14em">常规追加与分支</text>
 
     <g transform="translate(20, 540)">
       <rect x="0" y="0" width="14" height="14" rx="2" fill="rgba(181,82,58,0.10)" stroke="#b5523a" stroke-width="1"/>
@@ -219,7 +219,7 @@
     <g transform="translate(340, 540)">
       <rect x="0" y="0" width="14" height="14" rx="2" fill="rgba(28,25,23,0.03)" stroke="rgba(28,25,23,0.20)" stroke-width="1" stroke-dasharray="3,2"/>
       <text x="22" y="12" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif">被抛弃分支</text>
-      <text x="22" y="26" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">仍在树上，永不删除</text>
+      <text x="22" y="26" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">常规回退不删除旧 entry</text>
     </g>
 
     <g transform="translate(540, 540)">
@@ -229,10 +229,10 @@
     </g>
 
     <text x="20" y="600" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" font-style="italic">
-      三种操作都是 O(1)：追加（写新节点 + 移 leafId）、回退（只移 leafId）、重试（回退 + 追加）
+      常规追加会生成并检查 ID；_persist 再扫描 entries 并同步写盘，不能整体称为 O(1)。
     </text>
     <text x="20" y="618" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" font-style="italic">
-      → 走错路了就分叉，不用开十个终端窗口。所有分支活在同一个文件里。
+      → 新 entry 以当前 leaf 为 parentId 追加；只回退而没有新 entry 时，leaf 移动不会单独写入文件。
     </text>
   </svg>
   </div>

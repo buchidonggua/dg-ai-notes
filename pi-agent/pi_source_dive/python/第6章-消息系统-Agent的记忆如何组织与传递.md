@@ -1,12 +1,14 @@
 # 第6章：消息系统 —— Agent 的记忆如何组织与传递
 
+> 源码基准：本地 `pi-main` 快照，核心包版本 `v0.84.3`，核对日期 `2026-10-12`。下文路径均相对源码根目录。
+
 上一章我们学了工具系统——模型说"读文件"，Agent Loop 通过五步管道执行 read 工具，最终产生一条 `ToolResultMessage`。但你有没有注意到：我们一直在说"消息"这个词，却从来没拆开看过它到底长什么样。
 
 UserMessage、AssistantMessage、ToolResultMessage——这三个名字反复出现在前五章里。第 3 章说"消息在 Loop 中流转"，第 4 章说"消息发给模型"，第 5 章说"工具结果是一条消息"。
 
 但消息到底是什么？它的数据结构长什么样？Agent 内部的消息和发给模型的消息一样吗？
 
-这一章就来回答这些问题。你会看到 Pi 消息系统最核心的设计——**两层消息**：Agent 内部用丰富的格式自由表达，到了 LLM 边界翻译回严格的标准格式。
+这一章就来回答这些问题。你会看到 Pi 消息系统最核心的设计——**两层消息**：Agent 内部用可扩展的 `AgentMessage` 表达，到了模型边界再翻译成 `pi-ai` 的标准 `Message`。这里的 `Message` 是 provider-neutral 类型；它不是每家模型 API 原生消息结构的总称，后续 Provider 转换层还会处理各自的协议差异。
 
 ---
 
@@ -18,7 +20,7 @@ UserMessage、AssistantMessage、ToolResultMessage——这三个名字反复出
 
 这条命令的信息，在 Pi 内部会变成一条 **BashExecutionMessage**——它有 `command` 字段记录命令原文、`output` 字段记录输出内容、`exitCode` 字段记录退出码。这些结构化字段让 UI 可以用专用渲染器漂亮地展示终端输出。
 
-但问题来了：当 Agent Loop 准备调用 LLM 时，LLM 的 API 根本不认识什么 `BashExecutionMessage`。它只认识三种消息格式：`user`（用户说的）、`assistant`（AI 回的）、`toolResult`（工具返回的）。BashExecutionMessage 不属于这三种中的任何一种。
+但问题来了：当 Agent Loop 准备调用模型时，`pi-ai` 的标准 `Message` 类型并不包含 `BashExecutionMessage`，只有 `user`、`assistant` 和 `toolResult` 三种成员。BashExecutionMessage 不属于这三种中的任何一种；它需要先经 coding-agent 的 `convertToLlm` 转成标准消息，再由 pi-ai 转换成目标 Provider 的请求格式。
 
 那这条消息是怎么被 LLM 看到的？中间经历了什么变化？
 
@@ -28,7 +30,7 @@ UserMessage、AssistantMessage、ToolResultMessage——这三个名字反复出
 
 ## 二、第一层：LLM 认识的消息只有三种
 
-在了解消息怎么变换之前，先搞清楚"变换的目标"长什么样。LLM 能理解的消息格式，在 Pi 里叫做 **Message** 类型，定义在最底层的 `packages/ai/src/types.ts` 里。
+在了解消息怎么变换之前，先搞清楚"变换的目标"长什么样。`pi-ai` 给 Agent Loop 使用的 provider-neutral 消息格式叫做 **Message**，定义在 `packages/ai/src/types.ts`。不同 Provider 的请求格式由 pi-ai 的转换层继续处理。
 
 它只有三个成员：
 
@@ -46,54 +48,60 @@ Message 联合类型（LLM 标准格式）
 
 ```python
 # ============================================================
-# 【Python 改写】UserMessage 结构
+# 【Python 改写】对应本节 TypeScript 节选
 # 原文 TS:
-#   {
+#   export interface UserMessage {
 #       role: "user",
-#       content: string | (TextContent | ImageContent)[],
-#       timestamp: number,
+#       content: string | (TextContent | ImageContent)[],  // 纯文本或内容块数组
+#       timestamp: number                                    // 必填，Unix 毫秒时间戳
 #   }
 # ============================================================
 
-# 概念对照：TS 的联合类型 `A | B` → Python 的 Union；
-# TS 的 `number` 时间戳 → Python 的 int（Unix 毫秒）
-from typing import Union
+# 概念对照：TypedDict 表达字段形状；默认所有字段必填。内容块类型沿用前文。
+from __future__ import annotations
+from typing import Literal, TypedDict
 
-{
-    "role": "user",
-    "content": Union[str, list[Union["TextContent", "ImageContent"]]],   # 纯文本或内容块数组
-    "timestamp": int,                                                       # Unix 毫秒时间戳
-}
+class UserMessage(TypedDict):
+    role: Literal["user"]
+    content: str | list[TextContent | ImageContent]
+    timestamp: int
 ```
 
 content 可以是一个纯字符串，也可以是一个内容块数组。这意味着用户消息既能发文字，也能发图片。
 
-**AssistantMessage**——LLM 的回复，字段最多：
+**AssistantMessage**——LLM 的回复，字段最多。下面的节选列出所有必填字段，并保留一个可选的错误字段；其它可选字段省略：
 
 ```python
 # ============================================================
-# 【Python 改写】AssistantMessage 结构
+# 【Python 改写】对应本节 TypeScript 节选
 # 原文 TS:
-#   {
+#   export interface AssistantMessage {
 #       role: "assistant",
-#       content: (TextContent | ThinkingContent | ToolCall)[],
-#       api: Api, provider: ProviderId, model: string,
-#       usage: Usage, stopReason: StopReason, errorMessage?: string,
-#       timestamp: number,
+#       content: (TextContent | ThinkingContent | ToolCall)[],  // 三种内容块
+#       api: Api,                   // 使用的 API 类型（如 "anthropic-messages"）
+#       provider: ProviderId,       // 提供商（如 "anthropic"）
+#       model: string,              // 模型名（如 "claude-sonnet-4-6"）
+#       usage: Usage,               // token 用量统计
+#       stopReason: StopReason,     // 停止原因（第3章讲过的7种值）
+#       errorMessage?: string,      // 错误信息
+#       timestamp: number             // 必填，Unix 毫秒时间戳
 #   }
 # ============================================================
 
-{
-    "role": "assistant",
-    "content": list[Union["TextContent", "ThinkingContent", "ToolCall"]],  # 三种内容块
-    "api":         "Api",          # 使用的 API 类型（如 "anthropic-messages"）
-    "provider":    "ProviderId",   # 提供商（如 "anthropic"）
-    "model":       str,            # 模型名（如 "claude-sonnet-4-6"）
-    "usage":       "Usage",        # token 用量统计
-    "stop_reason": "StopReason",   # 停止原因（第3章讲过的5种值）
-    "error_message": "optional str",   # 错误信息
-    "timestamp":   int,
-}
+# 概念对照：必填字段直接声明，TS 的问号字段用 NotRequired；Api、Usage 等沿用前文类型。
+from __future__ import annotations
+from typing import Literal, NotRequired, TypedDict
+
+class AssistantMessage(TypedDict):
+    role: Literal["assistant"]
+    content: list[TextContent | ThinkingContent | ToolCall]
+    api: Api
+    provider: ProviderId
+    model: str
+    usage: Usage
+    stopReason: StopReason
+    errorMessage: NotRequired[str]
+    timestamp: int
 ```
 
 这里最值得关注的是 content 字段——它不是字符串，而是一个**内容块数组**，可以包含三种东西：
@@ -119,31 +127,36 @@ AssistantMessage 的 content 内容块
 
 ```python
 # ============================================================
-# 【Python 改写】ToolResultMessage 结构
+# 【Python 改写】对应本节 TypeScript 节选
 # 原文 TS:
-#   {
+#   export interface ToolResultMessage<TDetails = unknown> {
 #       role: "toolResult",
-#       toolCallId: string,
-#       toolName: string,
-#       content: (TextContent | ImageContent)[],
-#       details?: TDetails,
-#       isError: boolean,
-#       timestamp: number,
+#       toolCallId: string,                             // 对应哪个 ToolCall
+#       toolName: string,                               // 工具名
+#       content: (TextContent | ImageContent)[],        // 结果内容
+#       details?: TDetails,                             // 结构化详情（给 UI 看的）
+#       isError: boolean,                               // 必填，是否为工具错误结果
+#       timestamp: number                               // 必填，Unix 毫秒时间戳
 #   }
 # ============================================================
 
-{
-    "role": "toolResult",
-    "tool_call_id": str,                                       # 对应哪个 ToolCall
-    "tool_name":   str,                                        # 工具名
-    "content":     list[Union["TextContent", "ImageContent"]], # 结果内容
-    "details":     "optional TDetails",                        # 结构化详情（给 UI 看的）
-    "is_error":    bool,                                       # 是否执行失败（第5章的"永不抛出"产物）
-    "timestamp":   int,
-}
+# 概念对照：泛型结构化详情仍可选；调用 ID、内容、错误标志和时间戳必填。
+from __future__ import annotations
+from typing import Generic, Literal, NotRequired, TypeVar, TypedDict
+
+TDetails = TypeVar("TDetails")
+
+class ToolResultMessage(TypedDict, Generic[TDetails]):
+    role: Literal["toolResult"]
+    toolCallId: str
+    toolName: str
+    content: list[TextContent | ImageContent]
+    details: NotRequired[TDetails]
+    isError: bool
+    timestamp: int
 ```
 
-ToolResultMessage 通过 `toolCallId` 字段和 AssistantMessage 里的 ToolCall 对应起来。第 3 章提到的"工具结果必须精准关联回调用请求"就是靠这个字段。`details` 字段携带结构化信息给 UI 渲染用，LLM 通常不需要看这个字段。
+`UserMessage.timestamp`、`AssistantMessage.timestamp` 和 `ToolResultMessage.timestamp` 都是必填的 Unix 毫秒时间戳。`AssistantMessage` 的 `api`、`provider`、`model`、`usage`、`stopReason` 也都是必填字段；`ToolResultMessage` 的 `toolCallId`、`toolName`、`content`、`isError` 同样必填。`details`、工具 `usage` 与 `addedToolNames` 是可选字段。ToolResultMessage 通过 `toolCallId` 和 AssistantMessage 里的 ToolCall 对应起来。第 3 章提到的"工具结果必须精准关联回调用请求"就是靠这个字段。`details` 携带结构化信息给 UI 渲染用，LLM 请求不需要它。
 
 ### 一个完整的对话示例
 
@@ -184,20 +197,22 @@ messages 数组：
 
 好，现在回到开头的场景。你执行了 `!ls -la`，Pi 内部需要记录这次执行的信息。
 
-这里其实藏着一个更普遍的问题：**Agent 内部除了"LLM 对话"这件事，还有大量功能性数据要管理**——Bash 命令的执行记录、上下文被压缩后的摘要、Git 分支切换的记录、用户上传的附件元信息……
+这里其实藏着一个更普遍的问题：**Agent 内部除了"LLM 对话"这件事，还有大量功能性数据要管理**——Bash 命令的执行记录、上下文被压缩后的摘要、会话分支切换的记录、用户上传的附件元信息……
 
 这些功能性数据有**两个独立的读者**，两个读者的需求是冲突的：
 
 - **UI 端**需要结构化字段——Bash 执行要分别拿到 `command`、`output`、`exitCode`、`cancelled`、`truncated`，才能在终端里漂亮地渲染（命令用高亮、输出用等宽字体、退出码用颜色标识）
 - **LLM 端**只需要看一段扁平文本——"用户执行了 `ls -la`，输出是 `file1.txt\nfile2.txt\n...`"，这一段文本塞进 `UserMessage.content` 就够用了
 
-冲突点在哪？**如果为了 LLM 把字段提前拍扁存进 `UserMessage`，UI 就再也拿不回结构化数据了**——你已经搅成一锅粥。反过来，如果只存结构化的自定义消息、不进 LLM 上下文，那 LLM 就会失忆——下一轮它不知道用户刚才执行了什么。
+冲突点在哪？**如果为了 LLM 把字段提前拍扁存进 `UserMessage`，UI 就再也拿不回结构化数据了**——你已经搅成一锅粥。反过来，如果只存结构化的自定义消息、不在模型边界转换，那模型就会失忆——下一轮它不知道用户刚才执行了什么。
 
-Pi 的设计是**两边都不妥协**：**以结构化的形式存进 `context.messages`**（满足 UI/持久化），**在调用 LLM 的边界上做一次翻译**（满足 LLM）。这样 UI 永远有完整的结构化数据可用，LLM 也能看到它需要的扁平版本。翻译是在最后一刻发生的、有损的、单向的——损失掉的结构化字段，UI 早就用过了，无所谓。
+Pi 的设计是**两边都照顾到**：**以结构化的形式放进 `context.messages`**（满足 Agent 内部处理和 UI 展示），**在调用模型的边界上做一次翻译**（满足标准消息协议）。这样宿主可以保留结构化字段，模型也能看到它需要的内容。翻译是在最后一刻发生的、有损的、单向的——损失掉的结构化字段仍留在 Agent 自己的消息状态中。
+
+消息类型本身不负责持久化。低层 `pi-agent-core` 的 `Agent` 维护内存状态，不会自动写会话文件或执行上下文压缩；`coding-agent` 的 `AgentSession`/`SessionManager` 才负责把会话项写入和恢复。下面谈到持久化时，范围指 coding-agent 宿主。
 
 **Pi 的解法是：允许应用自定义消息类型。** `pi-agent-core` 在 AgentMessage 联合类型里预留了一个扩展点（叫 `CustomAgentMessages`，下一节会展开它的实现原理），应用通过 TypeScript 的声明合并往里加自己的消息类型。每个应用只注册自己需要的——核心包零依赖，应用层全栈类型安全。
 
-以 pi 自带的 coding-agent 为例，它在 [packages/coding-agent/src/core/messages.ts](repo/packages/coding-agent/src/core/messages.ts) 里定义了 4 种自定义消息：
+以 pi 自带的 coding-agent 为例，它在 `packages/coding-agent/src/core/messages.ts` 里声明了 4 种自定义消息，扩展后的 `AgentMessage` 因此在这个应用中有 7 个成员：
 
 ```
 coding-agent 的自定义消息类型
@@ -212,43 +227,45 @@ coding-agent 的自定义消息类型
 
 ```python
 # ============================================================
-# 【Python 改写】BashExecutionMessage 结构
+# 【Python 改写】对应本节 TypeScript 节选
 # 原文 TS:
-#   {
+#   export interface BashExecutionMessage {
 #       role: "bashExecution",
-#       command: string,
-#       output: string,
-#       exitCode: number | undefined,
-#       cancelled: boolean,
-#       truncated: boolean,
-#       fullOutputPath?: string,
+#       command: string,          // 命令原文："ls -la"
+#       output: string,           // 输出内容："file1.txt\nfile2.txt\n..."
+#       exitCode: number | undefined,  // 退出码：0
+#       cancelled: boolean,       // 是否被取消
+#       truncated: boolean,       // 输出是否被截断
+#       fullOutputPath?: string,  // 截断时的完整输出文件路径
 #       timestamp: number,
-#       excludeFromContext?: boolean,
+#       excludeFromContext?: boolean  // 是否排除在 LLM 上下文之外
 #   }
 # ============================================================
 
-{
-    "role": "bashExecution",
-    "command":           str,                 # 命令原文："ls -la"
-    "output":            str,                 # 输出内容："file1.txt\nfile2.txt\n..."
-    "exit_code":         "int | None",        # 退出码：0
-    "cancelled":         bool,                # 是否被取消
-    "truncated":         bool,                # 输出是否被截断
-    "full_output_path":  "optional str",      # 截断时的完整输出文件路径
-    "timestamp":         int,
-    "exclude_from_context": "optional bool",  # 是否排除在 LLM 上下文之外
-}
+# 概念对照：字段名称保留消息数据协议；exitCode 必须存在但值可为空，两个问号字段可缺省。
+from typing import Literal, NotRequired, TypedDict
+
+class BashExecutionMessage(TypedDict):
+    role: Literal["bashExecution"]
+    command: str
+    output: str
+    exitCode: int | None
+    cancelled: bool
+    truncated: bool
+    fullOutputPath: NotRequired[str]
+    timestamp: int
+    excludeFromContext: NotRequired[bool]
 ```
 
 结构化字段全保留下来了。但这里要停下来强调一下——**自定义消息不只是"翻译给 LLM 用的中间格式"那么简单，它本身带来了三个独立的能力**：
 
 **1. UI 专用渲染**。UI 根据 `role` 字段做分派——`bashExecution` 用终端样式渲染、`compactionSummary` 用摘要卡片渲染，命令、输出、退出码各占一行，互不干扰。如果没有自定义消息，UI 只能拿到一段扁平文本，所有渲染花样都得退回到"全是大段文字"。
 
-**2. 持久化恢复**。session 文件存的是完整的结构化数据。下次启动 Agent 时，UI 能精确还原上次的渲染状态——退出码仍然有颜色、命令仍然高亮、截断标识仍然在。如果只存翻译后的扁平文本，这些信息重启后就永久丢失了。
+**2. 宿主持久化**。coding-agent 的 `SessionManager` 把普通消息、Bash 执行和扩展自定义消息按会话项保存；分支摘要和压缩摘要也由宿主的会话层保存。重新载入时，宿主按这些记录恢复消息状态。这个能力来自 `AgentSession`/`SessionManager`，不是低层 `AgentMessage` 联合类型自动提供的。
 
-**3. 精细化可见性控制**。因为自定义消息有自己的 `role`，可以在 `convertToLlm` 翻译时做特殊处理——比如给它加一个 `excludeFromContext = true` 字段，LLM 就完全看不到这条消息，但 UI 照常渲染。**标准消息做不到这一点**——一旦进了 `messages` 数组，convertToLlm 就一定会翻译它发给 LLM，没有"对 UI 可见但对 LLM 不可见"的余地。
+**3. 精细化可见性控制**。自定义消息可以有自己的字段，并在 `convertToLlm` 翻译时做特殊处理。coding-agent 的 `BashExecutionMessage` 用 `excludeFromContext` 控制是否进入模型上下文；`CustomMessage.display` 则控制是否显示在 TUI，`details` 保留扩展元数据且不发送给模型。**标准消息没有这些 coding-agent 专用开关**，宿主需要通过扩展消息或其它上下文策略实现相应行为。
 
-所以后面 §五 讲到 `convertToLlm` 翻译、§七 讲到 `excludeFromContext` 过滤时，请记住：**这两件事不是自定义消息带来的"麻烦"，恰恰相反——它们是自定义消息赋予的能力**。翻译是为了让 LLM 看到扁平版本，过滤是为了让某些消息对 LLM 隐身。没有自定义消息，这两件事都做不了。
+所以后面 §五 讲到 `convertToLlm` 翻译、§七 讲到 `excludeFromContext` 过滤时，请记住：**这两件事让宿主可以保留内部结构，同时选择要提供给模型的内容**。翻译是为了让模型看到标准消息；过滤让某些消息留在宿主消息状态中、但不进入模型上下文。
 
 但这里有个根本性的问题：**Message 联合类型是封闭的——只有 UserMessage、AssistantMessage、ToolResultMessage 三种。** 这 4 种自定义消息不属于 Message 类型。那它们怎么被 Agent 系统接受并处理的？
 
@@ -260,28 +277,34 @@ coding-agent 的自定义消息类型
 
 ![两层消息——内富外严的双层设计](assets/260702-ch06-two-layer-messages.svg)
 
-**配图说明**：顶部 AgentMessage 联合类型一分为二——左支 Message（3 种标准）、右支 CustomAgentMessages（4 种扩展）。中间红色虚线是 convertToLlm() 翻译边界。底部 LLM 只看到 3 种标准消息，自定义消息要么被过滤、要么被翻译成 UserMessage。
+**配图说明**：以 coding-agent 为例，顶部 AgentMessage 联合类型由 3 种标准消息和 4 种自定义消息组成。中间红色虚线是 convertToLlm() 翻译边界。底部模型只看到 3 种标准消息；BashExecutionMessage 可被过滤，其它 coding-agent 自定义消息在此转换器中变成 UserMessage。
 
 ### AgentMessage 联合类型
 
-在 `packages/agent/src/types.ts:314` 有一行关键代码：
+`packages/agent/src/types.ts` 中的关键定义是：
 
 ```python
 # ============================================================
-# 【Python 改写】AgentMessage 联合类型
+# 【Python 改写】对应本节 TypeScript 节选
 # 原文 TS:
 #   export type AgentMessage = Message | CustomAgentMessages[keyof CustomAgentMessages];
 # ============================================================
 
-# 概念对照：TS 的联合类型 → Python 的 Union；
-# TS 的索引访问 `T[keyof T]` → Python 取所有自定义类型的 Union
-from typing import Union, TYPE_CHECKING
+# 概念对照：Python 没有声明合并；用显式联合表达 coding-agent 注册四种扩展后的类型。
+# 下列成员类型沿用本章定义；核心未注册扩展时，AgentMessage 就是 Message。
+from typing import Union
 
-AgentMessage = Union[Message, "CustomAgentMessages_value"]
-# 翻译成人话：AgentMessage = LLM 标准消息 + 自定义消息
+Message = Union[UserMessage, AssistantMessage, ToolResultMessage]
+AgentMessage = Union[
+    Message,
+    BashExecutionMessage,
+    CustomMessage,
+    BranchSummaryMessage,
+    CompactionSummaryMessage,
+]
 ```
 
-翻译成人话：**AgentMessage = LLM 标准消息 + 自定义消息。** 它是 Message（三种标准格式）和 CustomAgentMessages（自定义扩展）的联合类型。
+翻译成人话：**AgentMessage = pi-ai 标准消息 + 应用注册的自定义消息。** 核心包默认只有 Message 的三种成员；在 coding-agent 中，声明合并再加入四种消息，所以这个应用里的联合类型共有七种。
 
 用一张图看最清楚：
 
@@ -306,11 +329,11 @@ Agent 内部的 `context.messages` 数组里放的是 `AgentMessage[]`——它�
 
 ### CustomAgentMessages：默认为空的扩展点
 
-关键在 `CustomAgentMessages` 这个接口（这里展示 TS 原文，因为它在讲 TS 的类型系统设计）：
+关键在 `CustomAgentMessages` 这个接口：
 
 ```python
 # ============================================================
-# 【Python 改写】CustomAgentMessages 默认插槽（用 Protocol 表达）
+# 【Python 改写】对应本节 TypeScript 节选
 # 原文 TS:
 #   export interface CustomAgentMessages {
 #       // Empty by default - apps extend via declaration merging
@@ -318,15 +341,11 @@ Agent 内部的 `context.messages` 数组里放的是 `AgentMessage[]`——它�
 #   }
 # ============================================================
 
-# 概念对照：TS 的空 interface 在 Python 里类比 typing.Protocol；
-# TS 的「声明合并」是编译期魔法（见下节），Python 没有等价物——
-# 这里用 Protocol 占位表达「核心包留一个插槽」的思想
-from typing import Protocol, runtime_checkable
+# 概念对照：Python 用空类说明扩展插槽；Pi 核心实际使用 TypeScript interface。
 
-@runtime_checkable
-class CustomAgentMessages(Protocol):
-    """默认为空 - 应用通过自己的注册机制扩展（见下节）。"""
-    ...
+class CustomAgentMessages:
+    """默认空的扩展插槽；应用可在自己的类型层注册消息。"""
+    pass
 ```
 
 注意：**这个接口在核心包（pi-agent-core）里是空的。** 核心包完全不知道有什么 BashExecutionMessage、CompactionSummaryMessage 这些东西。它只提供了一个"插槽"，让应用层往里插。
@@ -337,7 +356,7 @@ class CustomAgentMessages(Protocol):
 
 ```python
 # ============================================================
-# 【Python 改写】声明合并的语义（Python 无等价物，用注册表演示）
+# 【Python 改写】对应本节 TypeScript 节选
 # 原文 TS:
 #   declare module "@earendil-works/pi-agent-core" {
 #       interface CustomAgentMessages {
@@ -349,40 +368,27 @@ class CustomAgentMessages(Protocol):
 #   }
 # ============================================================
 
-# TS 的 declare module 是编译期魔法：编译器自动把这段声明合并到原包的
-# CustomAgentMessages 接口上，结果 AgentMessage 联合类型就多了这 4 种成员。
-#
-# Python 里没有类型层面的「声明合并」。最接近的近似是运行时注册表：
-# 应用层在 import 时把自定义类型注册进一个 dict，核心包遍历它就行。
-# 这是「思想」的 Python 化表达——核心包仍然零依赖、应用层自己填类型。
+# 概念对照：注册表示意宿主注册自定义类型；Python 没有 TypeScript 声明合并语法。
 
-# 假设核心包提供一个空注册表：
-class _CustomAgentMessagesRegistry:
-    bashExecution: type | None = None
-    custom: type | None = None
-    branchSummary: type | None = None
-    compactionSummary: type | None = None
-
-# coding-agent 在启动时「注入」（运行时填充）：
-_CustomAgentMessagesRegistry.bashExecution     = BashExecutionMessage
-_CustomAgentMessagesRegistry.custom            = CustomMessage
-_CustomAgentMessagesRegistry.branchSummary     = BranchSummaryMessage
-_CustomAgentMessagesRegistry.compactionSummary = CompactionSummaryMessage
+custom_agent_message_types = {
+    "bashExecution": "BashExecutionMessage",
+    "custom": "CustomMessage",
+    "branchSummary": "BranchSummaryMessage",
+    "compactionSummary": "CompactionSummaryMessage",
+}
 ```
-
-> **关于这段 TypeScript 代码**：声明合并（`declare module`）是 TS 的编译期魔法，运行时不存在等价物。它的工作原理是：编译器在解析 coding-agent 的源码时，会把这段声明合并到 pi-agent-core 包导出的 `CustomAgentMessages` 接口上——结果就是 `AgentMessage` 联合类型自动多了这 4 种成员。Python 里没有等价机制（`pydantic` / `msgspec` 的模型注册也不是这种类型层面的合并），最接近的近似是用 `Annotated`/`TaggedUnion` 让应用层在运行时注册自己的类型。**对 Python 读者来说**，理解这个思想就够了：核心包留一个"插槽"（在 Python 里可以是空的 Protocol 或 typing.Union 占位），应用层用自己喜欢的方式（注册表、装饰器、Tagged dataclass）往里填具体类型。
 
 这段代码的效果是：**编译器自动把这 4 种类型加入 AgentMessage 联合类型。** 以后在 coding-agent 项目里，`AgentMessage` 就变成了 7 种消息的联合（3 种标准 + 4 种自定义），TypeScript 会帮你做完整的类型检查。
 
 **为什么不直接用继承或者泛型？** 因为继承需要修改基类——你改不了 `pi-agent-core` 包。泛型需要到处传参数——每个用到 `AgentMessage` 的函数签名都要加泛型参数。声明合并的好处是：**核心包完全不知道扩展的存在（零依赖），扩展包却能获得完整的类型安全。**
 
-不同的应用可以有不同的自定义消息。比如 Web UI 就注册了自己的消息类型（`user-with-attachments`、`artifact`）。**每个应用只看到自己需要的消息类型。**
+不同的应用可以注册不同的自定义消息。**每个应用只看到自己需要的消息类型；七种是 coding-agent 本章示例的数量，不是所有 Agent 的固定上限。**
 
 ---
 
-## 五、转换边界：convertToLlm —— 一切自定义消息终将变成 User
+## 五、转换边界：coding-agent 的 convertToLlm 把自定义消息转换成标准消息
 
-现在我们知道 Agent 内部用 7 种消息类型自由表达。但每次调用 LLM 时，LLM 只接受 3 种标准格式。怎么办？
+以 coding-agent 为例，`AgentMessage` 在这个应用中包含 7 种消息。每次调用模型时，它会把这些消息转换成 `pi-ai` 的三种标准格式。
 
 **答案是：在调用 LLM 之前的最后一刻，做一次翻译。** 这个翻译器就是 `convertToLlm` 函数。
 
@@ -393,7 +399,7 @@ _CustomAgentMessagesRegistry.compactionSummary = CompactionSummaryMessage
 ```
 每次 LLM 调用前的消息处理管道：
 
-context.messages: AgentMessage[]        ← Agent 内部的消息（最多 7 种类型）
+context.messages: AgentMessage[]        ← coding-agent 示例中有 7 种类型
         │
         ▼
 [1] transformContext (可选)             ← AgentMessage[] → AgentMessage[]
@@ -410,7 +416,7 @@ streamFunction(model, llmContext, ...)  ← 调用 LLM（第4章讲过）
 
 注意顺序：**先 transformContext（同层变换），再 convertToLlm（跨层翻译）。** 为什么分两步？后面会讲。
 
-### 转换规则：所有自定义消息都变成 User
+### 转换规则：coding-agent 的四种自定义消息如何处理
 
 coding-agent 的 `convertToLlm` 核心逻辑是一个 switch 语句，按 `role` 字段分派处理：
 
@@ -424,9 +430,9 @@ coding-agent 的 `convertToLlm` 核心逻辑是一个 switch 语句，按 `role`
 | `"branchSummary"` | 转换成 UserMessage（加 XML 标签包裹） |
 | `"compactionSummary"` | 转换成 UserMessage（加 XML 标签包裹） |
 
-关键洞察：**所有自定义消息都被转换成了 `user` 角色的消息。**
+关键洞察：**coding-agent 这四种自定义消息中，未被过滤的消息都被转换成 `user` 角色。** 这是该应用的 `convertToLlm` 规则，不是 Agent 核心对所有扩展消息的统一规定。
 
-为什么都变成 `user`？因为 LLM API 对角色顺序有严格要求——对话格式是 `user → assistant → user → ...` 交替的，不能连续出现两个 `assistant`。自定义消息本质上是"系统注入的信息"（Bash 执行结果、压缩摘要、分支摘要），放在 `user` 角色中最安全。
+为什么这里变成 `user`？这些自定义消息表达的是宿主提供的观察和上下文——Bash 执行结果、扩展注入内容、压缩摘要、分支摘要。`user` 是 `pi-ai` provider-neutral 消息类型里承载这类输入的标准角色；各 Provider 的原生角色和协议约束由下一层转换器处理。
 
 ### 具体例子：BashExecutionMessage 的转换
 
@@ -436,7 +442,7 @@ coding-agent 的 `convertToLlm` 核心逻辑是一个 switch 语句，按 `role`
 
 ```python
 # ============================================================
-# 【Python 改写】BashExecutionMessage 内部格式
+# 【Python 改写】对应本节 TypeScript 节选
 # 原文 TS:
 #   {
 #       role: "bashExecution",
@@ -449,11 +455,13 @@ coding-agent 的 `convertToLlm` 核心逻辑是一个 switch 语句，按 `role`
 #   }
 # ============================================================
 
-{
+# 概念对照：宿主先保留 BashExecutionMessage 的结构化字段，翻译边界再格式化给模型。
+
+bash_message = {
     "role": "bashExecution",
-    "command":   "ls -la",
-    "output":    "total 32\ndrwxr-xr-x  5 user  staff  160 May 30 10:00 .\n...",
-    "exit_code": 0,
+    "command": "ls -la",
+    "output": "total 32\ndrwxr-xr-x  5 user  staff  160 May 30 10:00 .\n...",
+    "exitCode": 0,
     "cancelled": False,
     "truncated": False,
     "timestamp": 1748568000000,
@@ -464,19 +472,21 @@ coding-agent 的 `convertToLlm` 核心逻辑是一个 switch 语句，按 `role`
 
 ```python
 # ============================================================
-# 【Python 改写】翻译后的 UserMessage（LLM 看到的格式）
+# 【Python 改写】对应本节 TypeScript 节选
 # 原文 TS:
 #   {
 #       role: "user",
 #       content: [{
 #           type: "text",
-#           text: "Ran `ls -la`\n```\ntotal 32\n...\n```"
+#           text: "Ran `ls -la`\n```\ntotal 32\ndrwxr-xr-x  5 user  staff  160 May 30 10:00 .\n...\n```"
 #       }],
 #       timestamp: 1748568000000
 #   }
 # ============================================================
 
-{
+# 概念对照：coding-agent 的 convertToLlm 将命令与输出格式化为标准 UserMessage 内容。
+
+user_message = {
     "role": "user",
     "content": [{
         "type": "text",
@@ -491,7 +501,7 @@ coding-agent 的 `convertToLlm` 核心逻辑是一个 switch 语句，按 `role`
 - `command`、`output`、`exitCode` 等结构化字段 → 被格式化成一段文本
 - 丢失的信息：`cancelled`、`truncated` 等布尔标志被融合进文本描述里，不再是独立字段
 
-其他自定义消息（CompactionSummary、BranchSummary）的转换模式完全一样——把摘要文本用 `<summary>` 标签包裹，前面加一句说明，变成 UserMessage 的 content。
+其他自定义消息的转换也由 coding-agent 的 `convertToLlm` 明确处理：`CustomMessage` 把字符串包装成文本块（原本就是块数组时则保留内容块）；`CompactionSummaryMessage` 与 `BranchSummaryMessage` 把摘要文本用 `<summary>` 标签包裹，变成 UserMessage 的 content。
 
 ---
 
@@ -499,7 +509,7 @@ coding-agent 的 `convertToLlm` 核心逻辑是一个 switch 语句，按 `role`
 
 ![消息处理管道](assets/260702-ch06-message-pipeline.svg)
 
-**配图说明**：横向数据流——AgentMessage[7] → transformContext（同层变换，类型不变）→ convertToLlm（跨层翻译）→ Message[3] 发给 LLM。下方标注 excludeFromContext 过滤分支。
+**配图说明**：横向数据流——coding-agent 示例的 AgentMessage（3 种标准 + 4 种自定义）→ transformContext（同层变换，类型不变）→ convertToLlm（跨层翻译）→ Message（3 种标准格式）发给模型。下方标注 excludeFromContext 过滤分支。
 
 回到管道图，有一个设计细节值得追问：**为什么分两步，而不是一步到位？**
 
@@ -517,9 +527,9 @@ coding-agent 的 `convertToLlm` 核心逻辑是一个 switch 语句，按 `role`
 
 ---
 
-## 七、过滤机制：有些消息 LLM 不该看
+## 七、过滤机制：区分 TUI 展示与模型上下文
 
-到目前为止，所有自定义消息最终都变成了 UserMessage 被 LLM 看到。但有些情况下，消息应该只给 UI 看、不给 LLM 看。
+`CustomMessage` 的显示设置和模型上下文过滤是两个独立开关：前者属于 coding-agent 的 TUI 展示，后者由 `convertToLlm` 决定。
 
 ### excludeFromContext：一个布尔字段的过滤力
 
@@ -529,36 +539,45 @@ Pi 的 Bash 工具有个功能：当你用 `!!` 前缀执行命令时（比如 `
 
 ```python
 # ============================================================
-# 【Python 改写】excludeFromContext 过滤逻辑
+# 【Python 改写】对应本节 TypeScript 节选
 # 原文 TS:
-#   case "bashExecution":
+#   // 将 convertToLlm 的 bashExecution 分支单独展开，展示过滤与转换。
+#   function convertBashMessage(m: BashExecutionMessage): UserMessage | undefined {
 #       if (m.excludeFromContext) {
-#           return undefined;
+#           return undefined;   // 调用方过滤掉 undefined
 #       }
-#       // ... 否则正常转换
+#       return {
+#           role: "user",
+#           content: [{ type: "text", text: bashExecutionToText(m) }],
+#           timestamp: m.timestamp,
+#       };
+#   }
 # ============================================================
 
-# 概念对照：TS 的 switch/case + 返回 undefined → Python 的 if + 返回 None
-
-if m.role == "bashExecution":
-    if m.exclude_from_context:
-        return None    # 直接返回 None，后续被 filter 掉
-    # ... 否则正常转换
+# 概念对照：None 对应 undefined；其余消息转换成包含文本块和原时间戳的 UserMessage。
+def convert_bash_message(message):
+    if message.get("excludeFromContext"):
+        return None
+    return {
+        "role": "user",
+        "content": [{"type": "text", "text": bash_execution_to_text(message)}],
+        "timestamp": message["timestamp"],
+    }
 ```
 
 注意：`excludeFromContext = true` 的消息**仍然存在于 `context.messages` 中**。UI 仍然可以看到它、渲染它。只是在调用 LLM 的那一刻，这条消息被"隐身"了。
 
-这就是"UI 能看、LLM 不能看"的机制——一个布尔字段，在翻译边界做过滤，数据本身不需要删除。
+这就是"TUI 能看、模型不能看"的机制——`BashExecutionMessage` 仍留在 Agent 消息状态里，翻译边界根据布尔字段过滤它。
 
-### 三种消息可见性级别
+### 三种消息可见性组合
 
-综合以上分析，Pi 的消息系统其实有三种可见性级别：
+在 coding-agent 中，UI 显示与模型上下文可以组合成三种常见情况：
 
-| 可见性级别 | LLM 是否看到 | UI 是否看到 | 实现方式 | 典型消息 |
-|-----------|------------|------------|---------|---------|
-| 全可见 | 是 | 是 | convertToLlm 正常转换 | 普通的 BashExecution、User、Assistant |
-| LLM 不可见 | 否 | 是 | `excludeFromContext = true` | `!!` 前缀的 Bash 执行 |
-| 仅持久化 | 否 | 否 | UI 渲染时跳过，convertToLlm 也过滤掉 | Web UI 的 ArtifactMessage |
+| 组合 | 模型上下文 | coding-agent TUI | 实现方式 | 典型消息 |
+|------|------------|-----------------|---------|---------|
+| 两边可见 | 是 | 是 | 正常转换；自定义消息设置 `display: true` | 普通 BashExecutionMessage、CustomMessage |
+| 仅模型可见 | 是 | 否 | `CustomMessage.display: false`；它仍会被 `convertToLlm` 转换 | 扩展注入的 context-only CustomMessage |
+| 仅 TUI 可见 | 否 | 是 | `BashExecutionMessage.excludeFromContext: true`，转换器过滤 | `!!` 前缀的 Bash 执行 |
 
 ---
 
@@ -605,7 +624,7 @@ if m.role == "bashExecution":
     → 回到 [2]，继续循环
 ```
 
-**核心规律**：Agent 内部用 7 种消息类型自由表达，但到了 LLM 边界，所有自定义消息都被翻译回 3 种标准格式。这个"内富外严"的设计让 Agent 拥有无限扩展能力，同时永远不破坏 LLM 兼容性。
+**核心规律**：coding-agent 内部用 7 种消息类型表达应用状态；到了模型边界，未过滤的自定义消息由宿主转换成 3 种标准格式。这个"内富外严"的设计让应用可以扩展内部消息，同时维持 pi-ai 的标准消息边界。
 
 ---
 
@@ -617,15 +636,15 @@ if m.role == "bashExecution":
 
 具体到消息系统，这两个"读者"的需求是分裂的：
 
-- **模型这边**只要三种标准消息（User/Assistant/ToolResult）——这是 LLM API 协议强制的，不能改
+- **模型调用层**接收三种 pi-ai 标准消息（User/Assistant/ToolResult）；它们统一内部调用格式，各 Provider 的原生协议由下一层适配
 - **功能这边**（UI、持久化、可见性控制）需要丰富的结构化字段——每多一种字段就多一种能力
 
 如果只为模型设计，结构化字段全丢，功能层退化；如果只为功能设计，模型看不懂，对话就断了。Pi 的方案是**两层各管各的**：
 
 | 层 | 关心谁 | 数据形式 | 怎么实现 |
 |----|--------|---------|---------|
-| **AgentMessage（内层）** | 功能层 | 7 种消息（3 标准 + 4 自定义），字段丰富 | 用联合类型 + 声明合并，让核心包零依赖、应用层全栈类型安全 |
-| **Message（外层）** | 模型 | 3 种标准消息，字段精简 | 在 LLM 调用边界做一次 `convertToLlm` 翻译，**有损、单向、最后一刻发生** |
+| **AgentMessage（内层）** | 功能层 | coding-agent 示例中有 7 种消息（3 标准 + 4 自定义），字段丰富 | 用联合类型 + 声明合并，让核心包零依赖、应用层获得类型安全 |
+| **Message（外层）** | 模型调用层 | 3 种 pi-ai 标准消息，字段精简 | 在模型调用边界做一次 `convertToLlm` 翻译，**有损、单向、最后一刻发生**；Provider 再转换成各自协议 |
 
 这一章的所有具体设计——三层类型递进（Tool → AgentTool → ToolDefinition）、声明合并扩展点、transformContext / convertToLlm 两阶段管道、excludeFromContext 可见性控制——都是这条主线的具体实现。**主线是"两个读者，两层架构"，实现手段可以千变万化。**
 
@@ -635,7 +654,7 @@ if m.role == "bashExecution":
 
 **第一步：识别"两个读者"分别要什么。** 协议规定什么（不能改的部分）？功能层需要什么（可以自定义的部分）？把它们列出来，明确各自的需求。
 
-**第二步：以内层结构化为"源"，外层翻译为"流"。** 存储和功能层用原始的、结构化的数据（不丢字段、不拍扁）；到协议边界再做一次有损翻译。**不要为了协议方便而提前拍扁数据**——一旦拍扁，UI 和持久化就再也拿不回结构。
+**第二步：以内层结构化为"源"，外层翻译为"流"。** Agent 状态和宿主会话层用原始的、结构化的数据（不丢字段、不拍扁）；到模型调用边界再做一次有损翻译。**不要为了协议方便而提前拍扁数据**——一旦拍扁，UI 和宿主会话层就再也拿不回结构。
 
 **第三步：用类型系统的扩展点做"核心 + 应用"分层。** 核心包定义协议接口（封闭）、留一个空的扩展插槽；应用包通过声明合并注入自己的具体类型。这样核心包零依赖，应用包全栈类型安全——不需要继承，不需要泛型参数污染。
 
@@ -656,9 +675,9 @@ if m.role == "bashExecution":
 ---
 
 > **本章关键源码索引**：
-> - `packages/ai/src/types.ts:322-408` — Message 联合类型 + 三种消息接口
-> - `packages/agent/src/types.ts:305-314` — CustomAgentMessages + AgentMessage
-> - `packages/coding-agent/src/core/messages.ts:70-77` — coding-agent 声明合并
-> - `packages/agent/src/agent-loop.ts:275-308` — 转换管道（transformContext → convertToLlm）
-> - `packages/coding-agent/src/core/messages.ts:82-195` — 自定义转换规则
-> - `packages/coding-agent/src/core/messages.ts:38-39` — excludeFromContext 字段
+> - `packages/ai/src/types.ts` — `Message`、`UserMessage`、`AssistantMessage`、`ToolResultMessage`
+> - `packages/agent/src/types.ts` — `CustomAgentMessages`、`AgentMessage`
+> - `packages/coding-agent/src/core/messages.ts` — `BashExecutionMessage`、`CustomMessage`、`BranchSummaryMessage`、`CompactionSummaryMessage`、声明合并、`convertToLlm`
+> - `packages/agent/src/agent-loop.ts` — `streamAssistantResponse` 中的 `transformContext` → `convertToLlm` 调用顺序
+> - `packages/coding-agent/src/core/agent-session.ts` — `AgentSession` 消息处理与 `SessionManager` 持久化边界
+> - `packages/coding-agent/src/core/session-manager.ts` — `appendMessage`、`appendCustomMessageEntry` 与会话恢复

@@ -4,7 +4,7 @@ module: M07
 displayOrder: 7
 status: published
 variant: ts
-summary: 两条管道——subscribe（只读观察，Agent 不等）与扩展 pi.on（能拦截改写，Agent 等你）。
+summary: 区分 Agent、AgentSession 与扩展事件，追踪观察订阅和可拦截钩子的执行顺序。
 prev: ch06-messages
 next: ch08-context-engineering
 diagrams:
@@ -13,13 +13,13 @@ diagrams:
     caption: 10 种事件 4 层嵌套
   - id: 260702-ch07-two-pipelines
     file: /assets/260702-ch07-two-pipelines.svg
-    caption: 两条管道——subscribe 与扩展 pi.on
+    caption: 事件桥接与两类消费入口
 counterpart: ch07-event-driven.python
 ---
 
 import Diagram from '../../components/Diagram.astro';
 
-
+> 源码基准：本地 `pi-main` 快照，核心包版本 `v0.84.3`，核对日期 `2026-10-12`。下文路径均相对源码根目录。
 
 前六章里，有一个东西反复出现但我们始终没深入——**事件**。
 
@@ -29,7 +29,7 @@ import Diagram from '../../components/Diagram.astro';
 
 这一章就打开 Agent 的"神经系统"。
 
-> **本章最重要的一句话：Pi 有两套并行的监听机制——`session.subscribe`（只读观察，Agent 不等你）和扩展系统的 `pi.on`（能拦截、能改写，Agent 会等你）。** 它们共享同一批事件源，但"Agent 等不等你的 listener"是两者最根本的分水岭。如果你只学一套，一定会踩"代码写了却静默不生效"的坑。
+> **本章最重要的一句话：Pi 至少要区分三种事件类型和两类消费入口。** 内核 `AgentEvent` 先驱动 Agent 状态与已等待的内核 listeners；`AgentSession` 再把它投影为扩展事件并通知 Session listeners。Session 自己还会产生队列、压缩、重试等事件；扩展系统也会在输入、工具决策和 Provider 请求等位置直接产生事件。`session.subscribe` 是同步通知监听器的只读观察入口，`pi.on` 则由扩展 Runner 按各事件方法的规则等待 handler，并在部分决策点读取返回值。
 
 > 本章起为进阶章节。前六章建立了对 Pi-Agent 运行机制的整体理解，从这里开始深入工程化议题。
 
@@ -96,7 +96,7 @@ Agent 内核层定义了 10 种 `AgentEvent`，它们构成了 Agent 运行的�
 
 <Diagram file="/assets/260702-ch07-event-nesting.svg" caption="10 种事件 4 层嵌套" id="260702-ch07-event-nesting" />
 
-**配图说明**：从外到内 4 层嵌套——Agent（Trace）→ Turn → Message → Tool Execution。每层都是"开始 → 更新（×N）→ 结束"配对。注意 Turn 2 没有 ToolCall 所以没有 Layer 4 嵌套。底部图例标注每层的事件数（2+2+3+3=10 种）。
+**配图说明**：Agent（Trace）包含多个 Turn；每个 Turn 中 Message 与 Tool Execution 是并列的事件族，不是互相嵌套。四组分别有 2、2、3、3 个事件类型，共 10 种 `AgentEvent`。
 
 ```typescript
 export type AgentEvent =
@@ -145,74 +145,62 @@ Agent 运行
 └── agent_end ──────────────────────── Agent 结束
 ```
 
-回忆第 3 章的概念：**一个 Turn = 一次模型调用 + 这次调用触发的所有工具执行。** turn_start 到 turn_end 之间，模型被调用了恰好一次。
+回忆第 3 章的概念：**一个 Turn = 一次模型调用 + 这次调用触发的所有工具执行。** `turn_start` 到 `turn_end` 之间，模型被调用了恰好一次。Message 与 Tool Execution 都发生在 Turn 内，二者不是父子事件关系。
 
-> **这 10 种是事件源，是两条管道的共同水源。** 两类监听器都消费这同一批事件——管道 A 直接收，管道 B 收翻译版。所以这 10 种不属于任何一条管道，是它们共享的源头。两条管道具体是什么、差别在哪，下一节展开。
+> `AgentEvent` 是内核事件联合类型，不是两类 listener 直接共享的一条总线。`AgentSession` 内部订阅 Agent 后才承担桥接：它先把内核事件转换为扩展事件并等待扩展派发，然后把对应的 `AgentSessionEvent` 同步通知 Session listeners。扩展还可以在 SDK 的决策点直接产生不对应内核事件的事件。
 
-### 2.2 两条管道：subscribe 与扩展 pi.on
+### 2.2 三种事件类型，两类消费入口
 
-Pi 的事件有两条订阅管道，它们喂的是同一个事件源，但能力差很多。这一节先把两条管道介绍清楚，再讲它们的核心差别。后面第三、四节会分别深入。
+本章把两类常见消费入口简称为两条管道，但要先分清它们背后的事件类型和生产者：
 
-**管道 A：`session.subscribe`**
+| 层 | 类型与生产位置 | 作用 |
+|---|---|---|
+| Agent 内核 | `AgentEvent`，由 `packages/agent/src/types.ts` 定义 | 10 种运行时生命周期事件；`Agent.processEvents()` 先更新状态，再按顺序 `await` 内核 listeners |
+| coding-agent Session | `AgentSessionEvent`，由 `packages/coding-agent/src/core/agent-session.ts` 定义 | 以 `AgentEvent` 为基础（`agent_end` 增加 `willRetry`），再加入队列、压缩、重试等产品层事件 |
+| 扩展系统 | `ExtensionEvent`，由 `packages/coding-agent/src/core/extensions/types.ts` 定义 | 接收 `_emitExtensionEvent()` 投影的部分内核事件，也包括 SDK 在输入、工具决策、上下文和 Provider 生命周期等位置直接触发的事件 |
 
-你在**外部脚本**里注册监听器（Web 服务器、CLI 工具）。拿到 `session` 对象后调 `session.subscribe(listener)`，事件就会流进你的 listener。
+实际桥接顺序是：
 
-它的特点是**只能看，不能改**——listener 没有返回值（或者说返回了也被丢弃），Agent 不会因为你的监听器改变任何行为。典型用途：流式渲染、打日志、把事件转发给浏览器。
-
-**管道 B：扩展系统的 `pi.on`**
-
-你把代码写进一个**扩展**（一段被框架加载的插件），在里面调 `pi.on("事件名", handler)`。handler 带返回值，Agent 会读。
-
-它的特点是**能改** Agent 的行为——handler 可以返回 `{ block: true }` 拦掉一次工具调用，可以返回新的消息列表改写给 LLM 的上下文。典型用途：安全策略、审计、注入动态信息。
-
-**核心差别：Agent 对 B 等，对 A 不等**
-
-两条管道最关键的差别不在返回值，而在 Agent 等不等你：
-
-- 管道 B 的 handler，Agent 会**等它返回**。因为 Agent 要读返回值才能决定下一步——你说拦，它才拦。源码里这行带 `await`：
-
-```typescript
-await this._emitExtensionEvent(event);   // 扩展：等。Agent 要读 handler 的返回值
+```text
+Agent Loop
+  → Agent.processEvents(): 更新 AgentState，按注册顺序 await 内核 listeners
+  → AgentSession._handleAgentEvent()
+      → await _emitExtensionEvent(event) → ExtensionRunner 对应方法派发
+      → _emit(AgentSessionEvent) → 同步调用 session.subscribe listeners
+      → 持久化与 Session 自身后续处理
 ```
 
-- 管道 A 的 listener，Agent **不等**。通知完就继续，listener 返回什么 Agent 都不读。源码里这行不带 `await`，而且 `_emit` 本身就是个同步函数：
+因此，`session.subscribe` 和 `pi.on` 不是从同一个事件总线上直接分出的两个消费者：普通内核事件由 `AgentSession` 适配后依次送往扩展和 Session listeners；Session 专属事件由 Session 自己发出；扩展专属决策事件则在 SDK 决策点直接调用 ExtensionRunner。
 
-```typescript
-this._emit(event);                        // subscribe：不等。同步调用，返回值丢弃
-```
+**入口 A：`session.subscribe`**
 
-因果关系很直接：扩展要读返回值，所以必须等；subscribe 不读返回值，等了也没用。"能改 Agent 行为"是"等 + 读返回值"的结果，不是单独赋予的能力。
+它注册 `AgentSessionEvent` listener，适合外部脚本、UI、日志和 SSE 等只读观察。Session 的 `_emit()` 会在当前调用栈里同步逐个调用 listener，不等待 listener 返回的 Promise，也不读取返回值。
 
-<Diagram file="/assets/260702-ch07-two-pipelines.svg" caption="两条管道——subscribe 与扩展 pi.on" id="260702-ch07-two-pipelines" />
+**入口 B：扩展系统的 `pi.on`**
 
-**配图说明**：同一个事件源分流到两条管道——左管道 A（subscribe，只读广播，Agent 不等），右管道 B（扩展 pi.on，能拦截改写，Agent 等你回话）。两条管道喂的是同一个事件，但 Agent 对一个等、对另一个不等。
+它注册扩展 handler。扩展 Runner 的方法会按各自实现等待 handler；工具拦截、上下文变换等方法还会读取返回值。不同 Runner 方法的错误捕获和返回值处理并不统一，后文按源码逐类说明。
+
+<Diagram file="/assets/260702-ch07-two-pipelines.svg" caption="事件桥接与两类消费入口" id="260702-ch07-two-pipelines" />
+
+**配图说明**：图中分开画出内核 `AgentEvent`、Session `AgentSessionEvent` 与扩展 `ExtensionEvent` 的生产和消费路径；内核事件经 `AgentSession` 先到扩展 Runner、再到 Session listeners，Session 专属事件和 SDK 决策事件则由各自位置产生。
 
 **容易搞混的两个事件名：`tool_call` 与 `tool_execution_start`**
 
-这两个名字像，但走不同管道、发生在不同时刻：
-
-```
-LLM 决定调一个工具
+```text
+LLM 返回一个 toolCall 内容块
    │
-   ▼  管道 B：tool_call（执行前）
-   │   扩展可以 return { block: true } 拦掉它；一旦 block，下面都不发生
-   │   注意：tool_call 不是 2.1 那 10 种之一，是 SDK 在执行前主动触发的扩展独占事件
+   ├─ Agent Loop 的 prepareToolCall() 调用 beforeToolCall hook
+   │    → AgentSession 投影为 ExtensionEvent: tool_call
+   │    → handler 可返回 block；该调用成为错误 ToolResult，不执行工具
    │
-   ▼  （没被拦）tool.execute() 开跑
-   │
-   ▼  管道 A + B 都收到：tool_execution_start（已开跑，拦不住了）
-   │   这是 2.1 那 10 种之一，由 Agent 内核发出，两条管道都收
-   │
-   ▼  tool_execution_end
+   └─ 通过准备阶段后才进入工具执行
+        → AgentEvent: tool_execution_start
+        → AgentSession 分别投影给扩展、再发给 Session listeners
 ```
 
-`tool_call` 是执行前的安检门（能拦，管道 B 独占），`tool_execution_start` 是开跑后的广播（拦不了，两条管道都收）。管道 A 根本收不到 `tool_call`——你在 `subscribe` 里写 `if (event.type === "tool_call")` 不会报错，但这个分支永远命中不了。
+`tool_call` 是扩展侧的执行前决策事件；`tool_execution_start` 是内核侧的执行生命周期事件。Session listener 收到后者，而不会收到 `tool_call`。除了 `tool_call`，`input`、`before_agent_start`、`context`、`tool_result` 等常见决策事件也由 SDK/Session 决策点触发；扩展事件类型还包括 Provider、Session、UI 与资源生命周期等其他类别，因此这五类不是全部扩展事件。
 
-除了 `tool_call`，扩展还独占另外 4 个决策点（`input`、`before_agent_start`、`context`、`tool_result`），它们都是"Agent 要停下来读返回值"的位置，管道 A 一律收不到。这 5 个事件加起来，构成了管道 B 能干预 Agent 的全部入口。
-
-> **一个细节：工具进度更新可以不等。** 生命周期事件（start/end 这类低频、不能错的）Agent 会逐个等扩展处理完。但工具执行时会刷出大量进度（Bash 每一行输出都是一个 `tool_execution_update`），逐个等会卡住 Agent。Pi 对这类高频事件开了口子——先攒着，最后一次性等完。原则是：越重要的事件等得越严格。
-
-`tool_call` 是"安检门"（执行前，能拦，管道 B 独占），`tool_execution_start` 是"已经开跑的广播"（拦不了，两条管道都收）。被 `tool_call` 拦掉的调用，根本不会触发 `tool_execution_*`。**它们是同一个时刻的两面，但只有 `tool_call` 能动手。** 这个例子也印证了 2.1 末尾的话：10 种内核事件是共同水源，而扩展独占事件（如 tool_call）是另一批，由 SDK 在决策点触发。
+> **派发屏障按具体链路判断。** 核心 `Agent.subscribe` listener 被 `Agent.processEvents()` 按顺序 `await`；`AgentSession._handleAgentEvent()` 又先等待扩展投影，再同步调用 Session listeners。高频事件也沿这条等待链进入扩展 Runner，不能概括成“先缓冲、最后统一等待”。工具执行期间的进度事件如何排队或收尾，则由 Agent Loop 自己的工具更新逻辑决定。
 
 ---
 
@@ -224,8 +212,8 @@ LLM 决定调一个工具
 
 ```typescript
 // 注册：传入一个 listener，返回一个注销函数
-const unsubscribe = session.subscribe((event, signal) => {
-    if (event.type === "message_update") {
+const unsubscribe = session.subscribe((event) => {
+    if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
         process.stdout.write(event.assistantMessageEvent.delta);   // 流式打字
     }
 });
@@ -238,20 +226,20 @@ listener 的签名是关键：
 
 ```typescript
 type AgentSessionEventListener = (event: AgentSessionEvent) => void;
-//                            注意返回值：void ↑↑↑↑
+//                            注意：只有 event 参数；返回值类型为 void
 ```
 
-**返回值是 `void`**——就算你在 listener 里 `return { block: true }`，Agent 也不读、不用。这是管道 A"只能看不能改"在类型层面的体现，也是和管道 B 最根本的差别。
+listener 的类型只有一个 `AgentSessionEvent` 参数，返回类型写作 `void`。Session `_emit()` 同步调用它，不读取返回值；通过这个入口返回 `{ block: true }` 不会拦工具。这是只读观察接口的边界。
 
 ### 3.2 "不等"对管道 A 意味着什么
 
-Agent 对 subscribe 监听器"通知一声就走"，不等你。落到实战，这个"不等"带来三个直接后果：
+AgentSession 不等待 session.subscribe 监听器返回的 Promise。落到实战，这个"不等"带来三个直接后果：
 
-- **你可以在监听器里干异步重活**（比如 `await` 一个慢请求），**不会**拖慢 Agent——Agent 早就走下一步了，你的请求在后台慢慢跑。
-- 但也正因为不等，**你的异步结果传不回去**——Agent 已经发下一个事件了，不在乎你算出了什么。
-- 所以管道 A 适合"我慢慢干我的，不打扰 Agent"的场景：写日志、推 SSE、更新外部状态。**不适合**需要"先等我处理完再继续"的场景——那必须走管道 B。
+- listener 的同步部分在 `_emit()` 的调用栈中运行，执行耗时会拖住当前事件派发。
+- 如果 listener 返回 Promise，`_emit()` 不会等待它；异步结果不能用来影响 Agent 决策。
+- `_emit()` 没有 `try/catch`：同步抛错会从 Session bridge 冒出并进入内核 listener 的错误处理路径；异步 Promise rejection 没有被 Pi 捕获，可能成为未处理拒绝。需要异步工作的 listener 应自行捕获并记录异常。
 
-**一个隐藏的坑**：因为不等，async 监听器里的错误不会冒泡到 Agent。如果你在 async 监听器里 `await` 一个会失败的操作，失败会被悄悄吞掉，你连错在哪都不知道。**务必在 async 监听器里自己 try-catch**——Agent 不会替你兜底。
+因此管道 A 适合只读观察、日志与事件转发，但必须意识到“Agent 不等 Promise”不等于“listener 完全不影响派发”：同步工作仍占用当前调用栈。
 
 ### 3.3 管道 A 能收到哪些事件
 
@@ -263,22 +251,22 @@ Agent 对 subscribe 监听器"通知一声就走"，不等你。落到实战，�
 |------|------------|---------|
 | `agent_settled` | 一次 `prompt()` 彻底跑完（含重试/压缩/队列全部处理完） | 可靠的结束信号：写库收尾、推 SSE done |
 | `compaction_start` / `compaction_end` | 上下文窗口快满时，自动压缩历史（第9章详讲） | UI 显示"正在压缩..."提示 |
-| `auto_retry_start` / `auto_retry_end` | LLM 调用失败，自动重试 | UI 显示重试次数、告警 |
+| `auto_retry_start` / `auto_retry_end` | Session 对满足配置条件的可重试错误执行自动重试时 | UI 显示重试次数、告警 |
 | `queue_update` | steering / followUp 消息队列变化 | UI 更新"排队中"状态 |
 | `session_info_changed` | 会话名称等元信息变化 | UI 刷新标题 |
 | `thinking_level_changed` | 切换思考深度 | UI 联动显示 |
 
-加上内核的 10 种生命周期事件，就是管道 A 能收到的全部。
+`AgentSessionEvent` 的内核部分以 `AgentEvent` 为基础，其中 `agent_end` 会增加 `willRetry` 信息；再加上上表所列 Session 事件。它不是“10 种内核事件加几个”的简单计数，完整联合类型应以源码定义为准。
 
-但管道 A **收不到**管道 B 独占的 5 个决策点（`input`/`before_agent_start`/`context`/`tool_call`/`tool_result`）——这 5 个 Agent 内核根本没有，是 SDK 在决策点主动调用扩展系统时产生的，只能走管道 B。
+管道 A 收不到扩展专属的 `input`、`before_agent_start`、`context`、`tool_call`、`tool_result` 等事件，因为它监听的是 `AgentSessionEvent`。扩展事件还包括 Provider、Session、UI 与资源生命周期事件。
 
 ### 3.4 什么时候用管道 A
 
 一句话：**纯观察、不改 Agent 行为、不需要 Agent 等你的场景。** 典型用途——流式渲染（TUI 逐 token 打字）、日志记录、SSE 转发给浏览器、统计 token 用量。这些场景的共同点是"Agent 干它的，我在旁边看一眼、或慢慢做我自己的事"，不需要 Agent 配合。
 
-> 💡 **落库 / 审计 / 日志也是「纯观察」，首选管道 A**。因为管道 A 不 `await` 你的监听器——你在里面 `await db.insert()`，派发方 `_emit` 调一下就走（2.2 讲的"不读返回值"），I/O 在后台跑，Agent 不被拖慢。
+> 💡 **落库 / 审计 / 日志通常属于只读观察**，可由管道 A 接收事件后转发给自己的队列。要注意 `_emit()` 会同步调用 listener；异步写库 Promise 不会被等待或捕获，可靠持久化需要你自己的队列、错误记录和关闭时 flush 机制。
 >
-> 只有当你要存的数据来自 `tool_call` / `tool_result` / `context` 等**管道 A 收不到的 5 个决策点**时，才被迫走管道 B——但管道 B 的 handler 被 `await`（2.2 讲的"Agent 等你"），落库必须 **fire-and-forget**：handler 里把数据推进队列后立刻返回，真正的写库交给独立 worker 异步处理，别让 `await` 链绑住 Agent 主循环。
+> 如果数据必须在 `tool_call` / `tool_result` / `context` 等扩展事件上采集，需从扩展入口获取。扩展 handler 是否被等待、异常如何处理，取决于具体 ExtensionRunner 方法；若只做后台 I/O，可将任务交给应用自有 worker 后尽快返回。
 >
 > 一个易踩的坑：`message_end` 看着像"一条消息存一笔"的好时机，但它一轮 `prompt()` 会触发多次（每条 assistant 消息结束都发，含中间要调工具的那些）。拿它当整轮收尾会重复落库 / 重复推 done。整轮的可靠收尾用 `agent_settled`——它每 prompt 只发一次。
 
@@ -327,69 +315,77 @@ const { session } = await createAgentSession({ /* ..., */ resourceLoader: loader
 管道 B 的注册实现极简。`pi.on` 做的事就是往一个 Map 里塞 handler：
 
 ```typescript
-// loader.ts —— createExtensionAPI 里
-on(event: string, handler: HandlerFn): void {
-    runtime.assertActive();
-    const list = extension.handlers.get(event) ?? [];   // 取出该事件的 handler 列表
-    list.push(handler);                                  // 塞进去
-    extension.handlers.set(event, list);                 // 放回
-},
+// packages/coding-agent/src/core/extensions/loader.ts · createExtensionAPI()
+const api = {
+    on(event: string, handler: HandlerFn): void {
+        runtime.assertActive();
+        const list = extension.handlers.get(event) ?? [];
+        list.push(handler);
+        extension.handlers.set(event, list);
+    },
+};
 ```
 
 每个扩展对象内部有一个 `handlers: Map<事件名, handler[]>`。`pi.on("tool_call", h)` 就是在 `"tool_call"` 这个 key 下追加 `h`。派发时遍历这个 Map。
 
 ### 4.3 源码：extensionRunner 的两条派发路径
 
-真正的差别在派发。`extensionRunner` 有两类派发方法，对应"通知型"和"决策型"事件——但**两类都 await handler**（这是管道 B"Agent 等你"的实现）：
+真正的差别在派发。ExtensionRunner 暴露多种方法；下面以通知型 `emit()`、决策型 `emitToolCall()` 和链式 transform 方法为例。它们都会等待 handler，但是否读取返回值、如何捕获错误都由具体方法决定：
 
-**路径 1：通知型 `emit()`（runner.ts:796）**——处理 `message_update`、`turn_start` 等只读事件：
-
-```typescript
-async emit(event): Promise<...> {
-    const ctx = this.createContext();
-    for (const ext of this.extensions) {                  // 遍历扩展
-        const handlers = ext.handlers.get(event.type);
-        if (!handlers || handlers.length === 0) continue;
-        for (const handler of handlers) {
-            try {
-                await handler(event, ctx);                // ★ await 每个 handler
-                // 通知型事件：不读返回值（session_before_* 例外，读 cancel）
-            } catch (err) {                               // ★ try-catch 隔离
-                this.emitError({ extensionPath: ext.path, event: event.type, error: ... });
-            }
-        }
-    }
-}
-```
-
-特征：**串行 await、try-catch 隔离、忽略返回值**。注意即便忽略返回值，仍然 await——这是为了"同步屏障"（等扩展处理完才发下一个事件，保证状态一致）。这条路径处理的是 2.1 那 10 种内核事件翻译过来的。
-
-**路径 2：决策型 `emitToolCall()`（runner.ts:927）**——处理 `tool_call` 拦截：
+**路径 1：通知型 `emit()`（`packages/coding-agent/src/core/extensions/runner.ts` · `emit()`）**——处理部分 `message_update`、`turn_start` 等事件：
 
 ```typescript
-async emitToolCall(event): Promise<ToolCallEventResult | undefined> {
-    const ctx = this.createContext();
-    let result: ToolCallEventResult | undefined;
-    for (const ext of this.extensions) {
-        const handlers = ext.handlers.get("tool_call");
-        if (!handlers || handlers.length === 0) continue;
-        for (const handler of handlers) {
-            const handlerResult = await handler(event, ctx);   // ★ await + 读返回值
-            if (handlerResult) {
-                result = handlerResult;
-                if (result.block) {
-                    return result;                              // ★ block 立即短路
+class ExtensionRunner {
+    async emit<TEvent extends RunnerEmitEvent>(event: TEvent): Promise<RunnerEmitResult<TEvent>> {
+        const ctx = this.createContext();
+        let result: SessionBeforeEventResult | undefined;
+        for (const ext of this.extensions) {
+            const handlers = ext.handlers.get(event.type);
+            if (!handlers || handlers.length === 0) continue;
+            for (const handler of handlers) {
+                try {
+                    const handlerResult = await handler(event, ctx);
+                    // 普通通知忽略返回值；session_before_* 会读取 cancel。
+                    if (this.isSessionBeforeEvent(event) && handlerResult?.cancel) {
+                        return handlerResult;
+                    }
+                } catch (err) {
+                    const message = err instanceof Error ? err.message : String(err);
+                    const stack = err instanceof Error ? err.stack : undefined;
+                    this.emitError({ extensionPath: ext.path, event: event.type, error: message, stack });
                 }
             }
-            // 注意：这里没有 try-catch！这是刻意的 fail-closed 设计——
-            // 扩展在 tool_call 里崩了，宁可拦掉工具也不放行（安全优先）
         }
+        return result as RunnerEmitResult<TEvent>;
     }
-    return result;
 }
 ```
 
-特征：**await + 读返回值 + `block` 短路 + 无 try-catch**。tool_call 是所有派发方法里唯一不包 try-catch 的——扩展抛错会冒泡，导致这次工具调用被 block（fail-closed：宁可错杀，不放行可能危险的操作）。
+特征：**按扩展与 handler 注册顺序 await；每个 handler 单独 try-catch，失败通过 `emitError` 报告后继续；普通通知事件忽略返回值**。对于四种 `session_before_*` 事件，`emit()` 会读取 `{ cancel }` 并可提前返回。`AgentSession` 在等待该方法结束后才发 Session event，因此扩展通知 handler 会形成这条 bridge 的屏障。`_emitExtensionEvent()` 只投影部分内核事件，不是全部 `AgentEvent` 都一对一转换。
+
+**路径 2：决策型 `emitToolCall()`（`packages/coding-agent/src/core/extensions/runner.ts` · `emitToolCall()`）**——处理 `tool_call` 拦截：
+
+```typescript
+class ExtensionRunner {
+    async emitToolCall(event: ToolCallEvent): Promise<ToolCallEventResult | undefined> {
+        const ctx = this.createContext();
+        let result: ToolCallEventResult | undefined;
+        for (const ext of this.extensions) {
+            const handlers = ext.handlers.get("tool_call");
+            if (!handlers || handlers.length === 0) continue;
+            for (const handler of handlers) {
+                const handlerResult = await handler(event, ctx);
+                if (!handlerResult) continue;
+                result = handlerResult;
+                if (result.block) return result;
+            }
+        }
+        return result;
+    }
+}
+```
+
+特征：**await + 读返回值 + `block` 短路 + 本方法不做逐 handler try-catch**。handler 抛错会从 `emitToolCall()` 冒出，经 `AgentSession.beforeToolCall` 返回到 `prepareToolCall()`；Loop 将该调用整理为错误 ToolResult，跳过实际工具执行，再把结果交回模型。不能把它概括成“Runner 统一 fail-closed”：此路径的异常如何影响后续运行由调用方处理。
 
 **路径 3：链式 transform 型**——还有一批决策事件走"链式 transform"，每个 handler 接收上一个的输出继续改。比如：
 
@@ -398,7 +394,7 @@ async emitToolCall(event): Promise<ToolCallEventResult | undefined> {
 - `emitBeforeAgentStart()`（runner.ts:1076）：链式覆盖系统提示词 + 收集注入消息。
 - `emitInput()`（runner.ts:1191）：链式改写用户输入，`action: "handled"` 短路。
 
-这批方法和 `emitToolCall` 一样 await + 读返回值，但**都包 try-catch**（错误转发 emitError）。只有 `emitToolCall` 是裸的。
+这些 transform 方法会等待 handler、按各自类型合并返回值；例如 `emitContext()` 捕获单个 handler 异常、报告 `emitError` 后继续处理。`emitMessageEnd()`、`emitToolResult()`、`emitBeforeAgentStart()`、`emitInput()` 与 Provider 相关方法也有各自错误处理，具体返回值、短路和继续策略不完全相同。应按实际调用方法判断，不能把“所有扩展 handler 都隔离”当作通用规则。
 
 ### 4.4 ctx：扩展上下文
 
@@ -406,19 +402,20 @@ handler 签名 `(event, ctx)` 里的 `ctx` 是 `ExtensionContext`，能力远强
 
 ```typescript
 interface ExtensionContext {
-    ui: ExtensionUIContext;                  // select/confirm/input/notify 等 UI 能力
-    mode: "tui" | "rpc" | "json" | "print";  // 当前运行模式
-    cwd: string;                             // 工作目录
-    sessionManager: ReadonlySessionManager;  // ★ 只读！能读历史但不能直接写
-    modelRegistry: ModelRegistry;            // 模型注册表
-    model: Model<any> | undefined;           // 当前模型
+    ui: ExtensionUIContext;
+    mode: "tui" | "rpc" | "json" | "print";
+    cwd: string;
+    sessionManager: ReadonlySessionManager;
+    modelRegistry: ModelRegistry;
+    model: Model<any> | undefined;
     thinkingLevel: ThinkingLevel | undefined;
-    signal: AbortSignal | undefined;         // 中断信号
-    abort(): void;                           // 主动中断
-    isIdle(): boolean;                       // Agent 是否空闲
-    compact(options?): void;                 // 触发上下文压缩
-    getSystemPrompt(): string;               // 读系统提示词
-    // ... 还有 getContextUsage / hasPendingMessages / shutdown 等
+    signal: AbortSignal | undefined;
+    abort(): void;
+    isIdle(): boolean;
+    compact(options?: CompactionOptions): void;
+    getSystemPrompt(): string;
+    getContextUsage(): ContextUsage | undefined;
+    hasPendingMessages(): boolean;
 }
 ```
 
@@ -430,15 +427,15 @@ interface ExtensionContext {
 
 | 扩展独占事件 | 触发位置 | 挂在哪个内核 hook 上 |
 |---|---|---|
-| `tool_call`（执行前）| `agent-session.ts:468` | `agent.beforeToolCall` |
-| `tool_result`（执行后）| `agent-session.ts:490` | `agent.afterToolCall` |
-| `input`（用户输入后）| `agent-session.ts:1131` | `sendUserMessage` 流程，skill/template 展开前 |
-| `before_agent_start`（开跑前）| `agent-session.ts:1224` | `sendUserMessage` 流程，`agent.run` 前 |
-| `context`（发 LLM 前）| `sdk.ts:350` | `agent.transformContext` |
-| `before_provider_request`（HTTP 发出前）| `sdk.ts:331` | `onPayload` 回调 |
-| `after_provider_response`（收到响应）| `sdk.ts:338` | `onResponse` 回调 |
+| `tool_call`（执行前）| `agent-session.ts` | `agent.beforeToolCall` |
+| `tool_result`（执行后）| `agent-session.ts` | `agent.afterToolCall` |
+| `input`（用户输入后）| `agent-session.ts` | `sendUserMessage` 流程，skill/template 展开前 |
+| `before_agent_start`（开跑前）| `agent-session.ts` | `sendUserMessage` 流程，`agent.run` 前 |
+| `context`（发 LLM 前）| `sdk.ts` | `agent.transformContext` |
+| `before_provider_request`（HTTP 发出前）| `sdk.ts` | `onPayload` 回调 |
+| `after_provider_response`（收到响应）| `sdk.ts` | `onResponse` 回调 |
 
-这张表回答了 2.2 那个"管道 A 为什么收不到这些"的问题：**它们不是 Agent 内核 `emit` 出来的（内核根本没这些 type），而是 SDK 在上述位置主动调用 `extensionRunner.emitXxx()` 的产物。** 管道 A 监听的是 `_emit`（被 `_handleAgentEvent` 调用），自然听不到这些。
+这些例子说明扩展事件有多个生产位置：有些挂在 Agent hook 上，由 `AgentSession` 适配；`context` 与 Provider hooks 在 SDK 的模型调用链中触发；Session、UI 与资源类事件又有各自的调用方。管道 A 监听 `AgentSessionEvent`，因此不会收到这些 ExtensionEvent。
 
 ### 4.6 什么时候用管道 B
 
@@ -530,19 +527,19 @@ function contextExtension(pi) {
 
 ## 六、总结：两条管道
 
-Pi 的事件系统有一条核心分叉：**Agent 对扩展等、对 subscribe 不等**。这个差别决定了两条管道的全部行为。
+Pi 的事件系统要区分具体入口：**核心 Agent.subscribe 会等待 listener；session.subscribe 只同步通知，不等待 Promise；扩展 handler 的等待与结果消费由对应 emitter 规定。**
 
-**管道 A（`session.subscribe`）** —— Agent 不等你的监听器，返回值丢弃。所以你只能观察（渲染、日志、转发），改不了 Agent 的行为。它轻量、注册简单，适合在外部脚本里用。async 监听器的错误不会被 Agent 捕获，要自己 try-catch。
+**管道 A（`session.subscribe`）** —— Session `_emit()` 同步调用 listener，不读取其返回值，也不等待返回的 Promise；同步工作仍在当前调用栈，异步拒绝由调用方自行捕获和记录。
 
-**管道 B（扩展 `pi.on`）** —— Agent 等你的 handler 返回，读返回值。所以你能干预 Agent 的下一步：拦工具、改上下文、换提示词。它还独占 5 个决策点事件（`input`/`before_agent_start`/`context`/`tool_call`/`tool_result`），管道 A 收不到。写法上是把代码塞进扩展、挂到 loader。扩展 handler 的异常多数被框架隔离（单个扩展崩了不连累别人），但 `tool_call` 是例外——它不隔离，扩展出错就拦掉工具（fail-closed：宁可错杀，不放行危险操作）。
+**管道 B（扩展 `pi.on`）** —— ExtensionRunner 各方法等待 handler；工具拦截、上下文变换等方法会读取返回值。扩展事件的生产者不只 AgentSession bridge，还包括输入、Session、UI、资源与 Provider 决策点。不同派发方法有不同异常策略：`emit()` 和多种 transform 方法会捕获并报告；`emitToolCall()` 不做逐 handler 捕获，错误沿调用链进入 `prepareToolCall()`，成为不执行工具的错误 ToolResult。
 
-判断用哪条管道，只问一句：**你的代码要不要改变 Agent 的行为**——要，写扩展走管道 B（Agent 会等你）；不要，`subscribe` 走管道 A（Agent 不等你）。
+判断用哪条管道，只问一句：**你的代码是否需要参与宿主决策**——需要时选择有对应结果协议的扩展事件；观察 Session 时可用 session.subscribe，并自行管理异步任务。这里的“只读观察”描述入口职责，不表示事件对象被冻结；返回值不会作为拦截结果被读取。
 
 ---
 
 ## 七、下一站
 
-本章我们看到，事件系统让 Agent 和外部世界彻底解耦——UI、日志、持久化、扩展，全部通过订阅事件工作。两条管道（subscribe + pi.on）合起来，覆盖了从"纯观察（不等）"到"深度干预（等+返回值）"的全部需求。
+本章我们看到，事件系统把 Agent 内核、coding-agent Session 与扩展系统连接起来。`AgentEvent`、`AgentSessionEvent` 和 `ExtensionEvent` 各有生产者与消费者；`session.subscribe` 与 `pi.on` 分别提供 Session 观察和扩展处理入口，具体等待、返回值与错误规则由对应派发实现决定。
 
 但有一个和事件密切相关的机制我们只提了一句：**`transformContext`**（管道 B 的 `context` hook 在内核层的对应物）。第 6 章讲消息系统时说它在 `convertToLlm` 之前执行，负责裁剪旧消息、注入外部上下文。当对话越来越长，消息越来越多，最终会超出模型的上下文窗口。这时候 `transformContext` 需要做一件更激进的事——**压缩对话历史**。
 
@@ -551,25 +548,12 @@ Pi 的事件系统有一条核心分叉：**Agent 对扩展等、对 subscribe �
 ---
 
 > **本章关键源码索引**：
-> - `packages/agent/src/types.ts:422-437` — 10 种 `AgentEvent` 定义（事件源）
-> - `packages/agent/src/agent-loop.ts:25` — `AgentEventSink` 类型（emit 签名）
-> - `packages/agent/src/agent.ts:529-576` — `processEvents`（内核同步屏障，await 汇入口）
-> - `packages/agent/src/agent.ts:173,243` — `listeners` Set 和 `subscribe`（内核层）
-> - `packages/agent/src/agent-loop.ts:666-707` — `executePreparedToolCall`（update 特殊处理）
-> - `packages/coding-agent/src/core/agent-session.ts:393` — `agent.subscribe(this._handleAgentEvent)`（汇入口注册）
-> - `packages/coding-agent/src/core/agent-session.ts:548-552` — `_emit`（管道 A 实体，**同步不等**）
-> - `packages/coding-agent/src/core/agent-session.ts:595-666` — `_handleAgentEvent`（两条管道的分叉点：619 行 await 管道 B，622 行不等管道 A）
-> - `packages/coding-agent/src/core/agent-session.ts:800-807` — `AgentSession.subscribe`（注册到 `_eventListeners`）
-> - `packages/coding-agent/src/core/agent-session.ts:139-181` — `AgentSessionEvent`（Session 层事件）
-> - `packages/coding-agent/src/core/agent-session.ts:712-793` — `_emitExtensionEvent`（翻译给管道 B）
-> - `packages/coding-agent/src/core/extensions/types.ts:1190-1231` — `pi.on` 的 30 个重载（全部扩展事件名）
-> - `packages/coding-agent/src/core/extensions/types.ts:1180` — `ExtensionHandler` 签名 `(event, ctx) => Result`
-> - `packages/coding-agent/src/core/extensions/loader.ts:238-243` — `pi.on` 实现（往 Map 里 push）
-> - `packages/coding-agent/src/core/extensions/runner.ts:796-828` — `emit()`（通知型派发，try-catch 隔离）
-> - `packages/coding-agent/src/core/extensions/runner.ts:927-948` — `emitToolCall()`（决策型，读返回值，★无 try-catch）
-> - `packages/coding-agent/src/core/extensions/runner.ts:979-1010` — `emitContext()`（链式 transform）
-> - `packages/coding-agent/src/core/extensions/runner.ts:668-746` — `createContext()`（ctx 惰性 getter）
-> - `packages/coding-agent/src/core/extensions/types.ts:307-347` — `ExtensionContext`（ctx 能力，sessionManager 只读）
-> - `packages/coding-agent/src/core/agent-session.ts:468-517` — `tool_call`/`tool_result` 触发（agent hooks）
-> - `packages/coding-agent/src/core/agent-session.ts:1131,1224` — `input`/`before_agent_start` 触发
-> - `packages/coding-agent/src/core/sdk.ts:331,338,350` — `context`/`before_provider_*`/`after_provider_response` 触发
+> - `packages/agent/src/types.ts` · `AgentEvent`：10 种内核事件
+> - `packages/agent/src/agent-loop.ts` · `AgentEventSink`、`runAgentLoop()`、`runLoop()`：事件发送、循环分支与工具批次
+> - `packages/agent/src/agent.ts` · `subscribe()`、`processEvents()`：Agent 状态 reducer 与顺序等待的内核 listener
+> - `packages/coding-agent/src/core/agent-session.ts` · `AgentSessionEvent`、`_handleAgentEvent()`、`_emitExtensionEvent()`、`_emit()`、`subscribe()`：事件桥接与 Session listeners
+> - `packages/coding-agent/src/core/extensions/types.ts` · `ExtensionEvent`、`ExtensionHandler`、`ExtensionContext`：扩展类型
+> - `packages/coding-agent/src/core/extensions/loader.ts` · `createExtensionAPI()`：注册 `pi.on`
+> - `packages/coding-agent/src/core/extensions/runner.ts` · `emit()`、`emitToolCall()`、`emitContext()`、`emitToolResult()`、`emitBeforeAgentStart()`、`emitInput()`：不同扩展派发策略
+> - `packages/coding-agent/src/core/sdk.ts` · Provider hooks 与 `context` 派发
+>

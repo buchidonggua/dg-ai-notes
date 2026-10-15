@@ -62,7 +62,7 @@
       <rect x="0" y="0" width="400" height="56" rx="6" fill="rgba(45,110,60,0.06)" stroke="#2d6e3c" stroke-width="1.2"/>
       <text x="14" y="20" fill="#2d6e3c" font-size="10" font-family="'Geist Mono', monospace">[1] §四 · 加法 · 系统提示词组装</text>
       <text x="14" y="38" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">buildSystemPrompt()</text>
-      <text x="14" y="52" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">CLAUDE.md 递归 + Skills 清单 + 工具定义 + cwd</text>
+      <text x="14" y="52" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">上下文文件候选 + Skills 清单 + 工具 + cwd</text>
     </g>
     <line x1="540" y1="140" x2="540" y2="160" stroke="#57534e" stroke-width="1.2" marker-end="url(#arrow)"/>
 
@@ -88,7 +88,7 @@
       <rect x="0" y="0" width="400" height="64" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.4"/>
       <text x="14" y="20" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace">[6] §三 · 减法 · 工具输出截断 ★</text>
       <text x="14" y="38" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif">truncateHead · 2000 行 / 50KB · UTF-8 安全</text>
-      <text x="14" y="54" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">80KB → 50KB · 末尾追加 [Full output: /tmp/...]</text>
+      <text x="14" y="54" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">按行 / 字节保留头部 · 提示用 offset / limit 继续读取</text>
     </g>
     <line x1="540" y1="372" x2="540" y2="392" stroke="#57534e" stroke-width="1.2" marker-end="url(#arrow)"/>
 
@@ -110,17 +110,17 @@
 
     <!-- Step 9 - decision diamond -->
     <g>
-      <text x="540" y="540" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle">[9] shouldCompact?</text>
+      <text x="540" y="540" fill="#b5523a" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle">[9] AgentSession 压缩检查</text>
       <polygon points="540,548 640,580 540,612 440,580" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.2"/>
-      <text x="540" y="576" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">tokens &gt;</text>
-      <text x="540" y="590" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">window − reserve?</text>
+      <text x="540" y="576" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">threshold / overflow</text>
+      <text x="540" y="590" fill="#1c1917" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">or length recovery?</text>
 
       <!-- NO branch (left) -->
       <line x1="440" y1="580" x2="280" y2="580" stroke="#57534e" stroke-width="1.2"/>
       <line x1="280" y1="580" x2="280" y2="612" stroke="#57534e" stroke-width="1.2" marker-end="url(#arrow)"/>
       <g transform="translate(160, 620)">
         <rect x="0" y="0" width="240" height="56" rx="6" fill="#ffffff" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
-        <text x="14" y="20" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">否 → 等下一轮</text>
+        <text x="14" y="20" fill="#57534e" font-size="10" font-family="'Geist', sans-serif">否 → 等下一次检查</text>
         <text x="14" y="40" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">buildSessionContext 走当前路径</text>
       </g>
 
@@ -148,7 +148,7 @@
 
     <!-- Bottom annotation -->
     <text x="540" y="700" fill="#a8a29e" font-size="10" font-family="'Geist', sans-serif" font-style="italic" text-anchor="middle">
-      用户切换分支 → Branch Summarization（LCA 算法）也走右侧分支——这套链路是 Pi 上下文工程的完整闭环
+      AgentSession 在 agent_end 后及下一条 prompt 前检查阈值 / overflow / length recovery；分支摘要由导航流程按需调用，是独立入口。
     </text>
   </svg>
   </div>

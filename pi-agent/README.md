@@ -20,9 +20,11 @@
 
 > 配套代码：[pi_sdk_learn/code/](./pi_sdk_learn/code/)（L01–L07，`npm install` 后按章运行）
 
-## 🔬 源码精读篇 · 10 章
+## 🔬 源码精读篇 · 12 章
 
-10 章系统拆解 pi-agent 的源码设计与实现，每章回答「是什么 / 怎么做 / 为什么」。提供 **TypeScript + Python 双版本**对照。
+12 章系统拆解 pi-agent 的源码设计与实现，每章回答「是什么 / 怎么做 / 为什么」。提供 **TypeScript + Python 双版本**对照。
+
+> 源码基准：2026-10-12 本地 `pi-main` 快照（核心包 `v0.84.3`），源码精读篇按这份快照核对。
 
 > 路径：[pi_source_dive/typescript/](./pi_source_dive/typescript/) · [pi_source_dive/python/](./pi_source_dive/python/) · 在线版见 https://dg-ai-notes.pages.dev
 
@@ -30,6 +32,8 @@
 ch01 开篇总览    →  ch02 三层架构   →  ch03 Agent Loop  →  ch04 模型调用  →  ch05 工具系统
                                                                        ↓
 ch06 消息系统    →  ch07 事件驱动   →  ch08 上下文工程  →  ch09 上下文压缩  →  ch10 会话管理
+                                                                       ↓
+ch11 扩展系统    →  ch12 测试模式
 ```
 
 | 章节 | 主题 | TS 版 | Python 版 |
@@ -44,6 +48,8 @@ ch06 消息系统    →  ch07 事件驱动   →  ch08 上下文工程  →  ch
 | M08 | 上下文工程 - 让有限窗口装下无限对话 | [📖](./pi_source_dive/typescript/第8章-上下文工程-让有限窗口装下无限对话.md) | [🐍](./pi_source_dive/python/第8章-上下文工程-让有限窗口装下无限对话.md) |
 | M09 | 上下文压缩 - 当对话太长怎么办 | [📖](./pi_source_dive/typescript/第9章-上下文压缩-当对话太长怎么办.md) | [🐍](./pi_source_dive/python/第9章-上下文压缩-当对话太长怎么办.md) |
 | M10 | 会话管理 - 对话的存储恢复与分叉 | [📖](./pi_source_dive/typescript/第10章-会话管理-对话的存储恢复与分叉.md) | [🐍](./pi_source_dive/python/第10章-会话管理-对话的存储恢复与分叉.md) |
+| M11 | 扩展系统 - 不改源码给 Agent 加能力 | [📖](./pi_source_dive/typescript/第11章-扩展系统-不改源码给Agent加能力.md) | [🐍](./pi_source_dive/python/第11章-扩展系统-不改源码给Agent加能力.md) |
+| M12 | 测试模式 - 不用真实模型验证 Agent 行为 | [📖](./pi_source_dive/typescript/第12章-测试模式-不用真实模型验证Agent行为.md) | [🐍](./pi_source_dive/python/第12章-测试模式-不用真实模型验证Agent行为.md) |
 
 > 🧪 **补充材料**：[notebooks/agent-loop.ipynb](./notebooks/agent-loop.ipynb) 是第 3 章 Agent Loop 的可执行实验场。
 
@@ -67,7 +73,7 @@ npm run dev      # http://localhost:4321
 
 ## 📥 PDF 下载
 
-PDF 版本不进 git 仓库（避免仓库膨胀），通过 GitHub Releases 分发：
+PDF 版本不进 git 仓库（避免仓库膨胀），通过 GitHub Releases 分发。已有下载文件属于对应历史发布；本次源码快照更新覆盖 Markdown、Web 内容及 PDF 导出章节清单，尚未生成新的 PDF：
 
 1. 进入 [Releases 页面](https://github.com/buchidonggua/dg-ai-notes/releases)
 2. 下载对应版本：

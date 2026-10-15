@@ -37,6 +37,8 @@ const CHAPTERS = [
   { slug: 'ch08-context-engineering', title: '第8章：上下文工程' },
   { slug: 'ch09-compaction',          title: '第9章：上下文压缩' },
   { slug: 'ch10-session',             title: '第10章：会话管理' },
+  { slug: 'ch11-extensions',          title: '第11章：扩展系统' },
+  { slug: 'ch12-testing',             title: '第12章：测试模式' },
 ];
 
 // ============================================================
@@ -280,15 +282,15 @@ async function main() {
 
     // 5. 渲染封面（首页）
     const coverPdf = path.join(tmpDir, 'cover.pdf');
-    console.log(`→ [1/12] 封面 ${baseUrl}/`);
+    console.log(`→ [1/${CHAPTERS.length + 2}] 封面 ${baseUrl}/`);
     await renderPdf(browser, `${baseUrl}/`, coverPdf, 0);
 
     // 6. 渲染目录页
     const tocPdf = path.join(tmpDir, 'toc.pdf');
-    console.log(`→ [2/12] 目录 ${baseUrl}/print-toc/${variant}`);
+    console.log(`→ [2/${CHAPTERS.length + 2}] 目录 ${baseUrl}/print-toc/${variant}`);
     await renderPdf(browser, `${baseUrl}/print-toc/${variant}`, tocPdf, 0);
 
-    // 7. 渲染 10 章
+    // 7. 渲染所有章节
     const chapterPdfs = [];
     const isPython = variant === 'python';
     for (let i = 0; i < CHAPTERS.length; i++) {
@@ -298,7 +300,7 @@ async function main() {
         : `${baseUrl}/modules/${ch.slug}`;
       const outFile = path.join(tmpDir, `ch${String(i + 1).padStart(2, '0')}.pdf`);
       const expectedSvg = inferExpectedSvgCount(ch.slug, variant);
-      console.log(`→ [${i + 3}/12] ${ch.title}  (${expectedSvg} SVG)  ${url}`);
+      console.log(`→ [${i + 3}/${CHAPTERS.length + 2}] ${ch.title}  (${expectedSvg} SVG)  ${url}`);
       await renderPdf(browser, url, outFile, expectedSvg);
       chapterPdfs.push({ file: outFile, title: ch.title });
     }

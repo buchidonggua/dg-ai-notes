@@ -36,7 +36,7 @@
 <div class="container">
   <p class="eyebrow">PI-AGENT · 第 4 章 · ARCHITECTURE</p>
   <h1>翻译公司：三层架构各管一件事</h1>
-  <p class="subtitle">用国际翻译公司作类比：前台（统一入口）查通讯录找到翻译员；翻译员（Provider 翻译器）精通一种方言；不管翻译什么语言，最终交回来的报告都必须符合公司统一格式（13 种事件协议）。Agent Loop 是客户，从不直接接触翻译员。</p>
+  <p class="subtitle">用国际翻译公司作类比：前台（统一入口）查通讯录找到翻译员；翻译员（Provider 翻译器）精通一种方言；不管翻译什么语言，最终交回来的报告都必须符合公司统一格式（12 种事件协议）。Agent Loop 是客户，从不直接接触翻译员。</p>
 
   <div class="frame">
   <svg viewBox="0 0 960 620" xmlns="http://www.w3.org/2000/svg">
@@ -63,7 +63,7 @@
       <text x="480" y="76" fill="#1c1917" font-size="14" font-weight="600" font-family="'Geist', sans-serif"
             text-anchor="middle">Agent Loop</text>
       <text x="480" y="96" fill="#57534e" font-size="10" font-family="'Geist Mono', monospace"
-            text-anchor="middle">streamSimple(model, context, options)</text>
+            text-anchor="middle">models.streamSimple(model, context, options)</text>
     </g>
 
     <line x1="480" y1="110" x2="480" y2="148" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
@@ -75,33 +75,33 @@
       <text x="214" y="175" fill="#b5523a" font-size="7" font-family="'Geist Mono', monospace"
             text-anchor="middle" letter-spacing="0.08em">LAYER 1 · 入口</text>
       <text x="480" y="196" fill="#1c1917" font-size="14" font-weight="600" font-family="'Geist', sans-serif"
-            text-anchor="middle">前台：stream()</text>
+            text-anchor="middle">前台：Models.streamSimple()</text>
       <text x="480" y="216" fill="#57534e" font-size="10" font-family="'Geist', sans-serif"
-            text-anchor="middle">查表 resolveApiProvider(model.api) → 派给翻译员</text>
+            text-anchor="middle">按 model.provider 找 Provider → applyAuth → 按 model.api 选 API</text>
     </g>
 
     <!-- left side: registry hint -->
     <text x="40" y="195" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
-          letter-spacing="0.10em">REGISTRY</text>
-    <text x="40" y="211" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif">"通讯录"</text>
-    <text x="40" y="226" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif">BUILTIN_APIS[]</text>
+          letter-spacing="0.10em">PROVIDER MAP</text>
+    <text x="40" y="211" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif">model.provider</text>
+    <text x="40" y="226" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif">查找 Provider</text>
 
     <!-- right side: streamSimple note -->
     <text x="820" y="195" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
-          letter-spacing="0.10em">SIMPLE WRAPPER</text>
-    <text x="820" y="211" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif">思考级别翻译</text>
-    <text x="820" y="226" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif">+ maxTokens 调整</text>
+          letter-spacing="0.10em">API DISPATCH</text>
+    <text x="820" y="211" fill="#1c1917" font-size="9" font-family="'Geist', sans-serif">按 model.api</text>
+    <text x="820" y="226" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif">选择 API 实现</text>
 
     <line x1="480" y1="232" x2="480" y2="270" stroke="#57534e" stroke-width="1"/>
 
-    <!-- ===== Layer 3: 标准报告协议 (13种事件) ===== -->
+    <!-- ===== Layer 3: 标准报告协议 (12种事件) ===== -->
     <g>
       <rect x="160" y="274" width="640" height="60" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.2"/>
       <rect x="176" y="286" width="156" height="14" rx="2" fill="rgba(181,82,58,0.10)" stroke="rgba(181,82,58,0.50)" stroke-width="0.8"/>
       <text x="254" y="297" fill="#b5523a" font-size="7" font-family="'Geist Mono', monospace"
             text-anchor="middle" letter-spacing="0.08em">LAYER 2 · 事件协议</text>
       <text x="480" y="316" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
-            text-anchor="middle">标准报告：13 种 AssistantMessageEvent</text>
+            text-anchor="middle">标准报告：12 种 AssistantMessageEvent</text>
       <text x="480" y="328" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
             text-anchor="middle">start · text_* · thinking_* · toolcall_* · done · error</text>
     </g>
@@ -126,9 +126,9 @@
       <text x="200" y="422" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
             text-anchor="middle">api: "anthropic-messages"</text>
       <line x1="120" y1="436" x2="280" y2="436" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
-      <text x="200" y="454" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">自己解析 SSE 流</text>
-      <text x="200" y="470" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">content_block → text_*</text>
-      <text x="200" y="486" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle" font-style="italic">~1000 行</text>
+      <text x="200" y="454" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">SDK .asResponse()</text>
+      <text x="200" y="470" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">Pi 自行解析 SSE</text>
+      <text x="200" y="486" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle" font-style="italic">再映射为统一事件</text>
     </g>
 
     <g>
@@ -139,9 +139,9 @@
       <text x="420" y="422" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
             text-anchor="middle">api: "openai-completions"</text>
       <line x1="340" y1="436" x2="500" y2="436" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
-      <text x="420" y="454" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">用官方 SDK</text>
+      <text x="420" y="454" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">SDK 返回结构化流</text>
       <text x="420" y="470" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">chunk.delta → text_*</text>
-      <text x="420" y="486" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle" font-style="italic">SDK 帮你做脏活</text>
+      <text x="420" y="486" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle" font-style="italic">再映射为统一事件</text>
     </g>
 
     <g>
@@ -163,7 +163,7 @@
       <text x="840" y="392" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif"
             text-anchor="middle">Bedrock 翻译员</text>
       <text x="840" y="422" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
-            text-anchor="middle">api: "bedrock-converse"</text>
+            text-anchor="middle">api: "bedrock-converse-stream"</text>
       <line x1="776" y1="436" x2="944" y2="436" stroke="rgba(28,25,23,0.08)" stroke-width="0.6"/>
       <text x="840" y="454" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">包了 AWS 一层</text>
       <text x="840" y="470" fill="#57534e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">cachePoint 节点</text>

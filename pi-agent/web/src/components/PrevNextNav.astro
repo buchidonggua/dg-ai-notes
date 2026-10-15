@@ -4,7 +4,7 @@
 // Task 9 FIX: replaced client fetch('/modules/<slug>/python/') with
 //   server-side data attributes. The 404 console noise for TS-only modules
 //   is eliminated because we know counterpart existence at build time.
-import { getAdjacentModules, type ModuleEntry } from '../utils/collection';
+import { getAdjacentModules, getVariantUrl, type ModuleEntry } from '../utils/collection';
 
 interface Props { entry: ModuleEntry; }
 const { entry } = Astro.props;
@@ -29,7 +29,7 @@ const nextPyUrl = pyUrl(next);
   {prev && (
     <a
       class="prev-card"
-      href={`/modules/${prev.slug}`}
+      href={entry.data.variant === 'python' && prevPyUrl ? prevPyUrl : getVariantUrl(prev)}
       data-py-url={prevPyUrl}
     >
       <span class="label">← 上一章 · {prev.data.module}</span>
@@ -40,7 +40,7 @@ const nextPyUrl = pyUrl(next);
   {next && (
     <a
       class="next-card"
-      href={`/modules/${next.slug}`}
+      href={entry.data.variant === 'python' && nextPyUrl ? nextPyUrl : getVariantUrl(next)}
       data-py-url={nextPyUrl}
     >
       <span class="label">{next.data.module} · 下一章 →</span>

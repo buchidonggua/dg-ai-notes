@@ -12,12 +12,11 @@
     <!-- Input: AgentMessage[] -->
     <rect x="20" y="180" width="180" height="120" rx="6" fill="rgba(28,25,23,0.05)" stroke="rgba(28,25,23,0.30)" stroke-width="1"/>
     <rect x="20" y="180" width="180" height="32" rx="6" fill="rgba(28,25,23,0.05)"/>
-    <text x="110" y="200" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">AgentMessage[7]</text>
-    <text x="36" y="228" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">User</text>
-    <text x="36" y="244" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">Assistant</text>
-    <text x="36" y="260" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">ToolResult</text>
-    <text x="36" y="276" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif">BashExecution</text>
-    <text x="36" y="292" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif">CompactionSummary</text>
+    <text x="110" y="200" fill="#1c1917" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">coding-agent 示例：7种</text>
+    <text x="36" y="228" fill="#57534e" font-size="8" font-family="'Geist', sans-serif">User · Assistant · ToolResult</text>
+    <text x="36" y="246" fill="#b5523a" font-size="8" font-family="'Geist', sans-serif">BashExecution · Custom</text>
+    <text x="36" y="264" fill="#b5523a" font-size="8" font-family="'Geist', sans-serif">BranchSummary</text>
+    <text x="36" y="282" fill="#b5523a" font-size="8" font-family="'Geist', sans-serif">CompactionSummary</text>
 
     <line x1="200" y1="240" x2="248" y2="240" stroke="#57534e" stroke-width="1" marker-end="url(#arrow)"/>
 
@@ -43,18 +42,18 @@
     <text x="520" y="252" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">· 过滤自定义消息</text>
     <text x="520" y="268" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">· 翻译为标准格式</text>
     <text x="520" y="288" fill="#a8a29e" font-size="8" font-family="'Geist Mono', monospace">input: AgentMessage[]</text>
-    <text x="520" y="298" fill="#a8a29e" font-size="8" font-family="'Geist Mono', monospace">output: Message[3]</text>
+    <text x="520" y="298" fill="#a8a29e" font-size="8" font-family="'Geist Mono', monospace">output: pi-ai Message[]</text>
 
     <line x1="704" y1="240" x2="752" y2="240" stroke="#b5523a" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
 
     <!-- Output: Message[] -->
     <rect x="756" y="180" width="184" height="120" rx="6" fill="rgba(181,82,58,0.06)" stroke="#b5523a" stroke-width="1.2"/>
     <rect x="756" y="180" width="184" height="32" rx="6" fill="rgba(181,82,58,0.10)"/>
-    <text x="848" y="200" fill="#b5523a" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Message[3]</text>
+    <text x="848" y="200" fill="#b5523a" font-size="10" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">pi-ai Message[]</text>
     <text x="772" y="234" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">User</text>
     <text x="772" y="256" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">Assistant</text>
     <text x="772" y="278" fill="#57534e" font-size="9" font-family="'Geist', sans-serif">ToolResult</text>
-    <text x="772" y="298" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" font-style="italic">→ 发给 LLM</text>
+    <text x="772" y="298" fill="#a8a29e" font-size="8" font-family="'Geist', sans-serif" font-style="italic">→ Provider 转换层</text>
 
     <!-- Annotation top -->
     <text x="352" y="160" fill="#57534e" font-size="9" font-family="'Geist Mono', monospace"
@@ -66,7 +65,7 @@
     <line x1="604" y1="300" x2="604" y2="340" stroke="#b5523a" stroke-width="0.8" stroke-dasharray="3,2"/>
     <rect x="452" y="344" width="304" height="44" rx="4" fill="rgba(181,82,58,0.04)" stroke="rgba(181,82,58,0.30)" stroke-width="1" stroke-dasharray="4,4"/>
     <text x="604" y="364" fill="#b5523a" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle">
-      excludeFromContext=true 的消息
+      BashExecution.excludeFromContext=true
     </text>
     <text x="604" y="380" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" text-anchor="middle" font-style="italic">
       在 convertToLlm 时被过滤，不发给 LLM
@@ -80,6 +79,6 @@
       先 transformContext（同层裁剪/注入）→ 再 convertToLlm（跨层翻译）
     </text>
     <text x="40" y="458" fill="#a8a29e" font-size="9" font-family="'Geist', sans-serif" font-style="italic">
-      为什么分两步？因为"裁剪/注入"是 Agent 自己的事（操作 7 种类型），"翻译"是 LLM 边界的事（输出 3 种类型）。职责不混淆。
+      为什么分两步？因为"裁剪/注入"是 coding-agent 示例中操作 7 种类型，"翻译"是 LLM 边界的事（输出 3 种类型）。职责不混淆。
     </text>
   </svg>

@@ -9,7 +9,7 @@
 | 系列 | book 值 | 章节前缀 | 规模 | 语言变体 |
 |------|---------|----------|------|----------|
 | 🚀 实战上手篇 | `practice` | P01–P07 | 7 章 | TypeScript |
-| 🔬 源码精读篇 | `internals` | M01–M10 | 10 章 | TypeScript + Python 双版本 |
+| 🔬 源码精读篇 | `internals` | M01–M12 | 12 章 | TypeScript + Python 双版本 |
 
 - **实战上手篇**：用一个真实场景（企业数据分析助手）搭一个能上线的垂直 Agent。无语言切换，每章一张卡、一个「阅读 →」按钮。
 - **源码精读篇**：系统拆解 SDK 源码设计。每章 TS + Python 双版本，顶栏一键切换。
@@ -65,9 +65,9 @@ npm install && npm run dev
 | 顶栏 **TS / Python** 切换器 | （仅源码精读篇）同一章在两种语言间跳转，偏好记到 localStorage |
 | 顶栏 **☀ / 🌙** 按钮 | 浅色/深色/跟随系统三态循环，`T` 键快捷键 |
 | 顶栏 **◧ 沉浸式阅读** 按钮 / **`F`** 键 | 进入沉浸模式：右栏大纲淡出、正文加宽。仅 ≥1280px 可用 |
-| 左侧 TOC | **按系列隔离**：读实战篇时显示 P01–P07，读精读篇时显示 M01–M10 |
+| 左侧 TOC | **按系列隔离**：读实战篇时显示 P01–P07，读精读篇时显示 M01–M12 |
 | 右侧 On-This-Page | 当前页面的标题大纲，滚动时高亮当前节 |
-| 点击 SVG 图内节点 | 自动跳转到对应代码块并高亮（源码精读篇已布好锚点） |
+| 点击配图 | 放大查看；带联动锚点的 SVG 节点可跳转到对应代码块并高亮 |
 | 底部 **← 上章 / 下章 →** | **系列内连续阅读**：两系列互不串台 |
 
 ---
@@ -80,7 +80,7 @@ npm install && npm run dev
 
 ```yaml
 book: internals | practice   # 系列（默认 internals）
-module: M01..M10 | P01..P07  # 章节号（正则 ^[MP]\d+(\.\d+)?$）
+module: M01..M12 | P01..P07  # 章节号（正则 ^[MP]\d+(\.\d+)?$）
 variant: ts | python          # 语言变体（实战篇只有 ts）
 counterpart: <slug>           # 源码精读篇：TS↔Python 配对 slug
 displayOrder: <number>        # 系列内排序（两系列各自从 1 起）
@@ -91,8 +91,8 @@ displayOrder: <number>        # 系列内排序（两系列各自从 1 起）
 
 ### mdx 源与 md 快照
 
-- `src/content/modules/` 是 web 富内容源（mdx，27 个文件）
-- `../pi_source_dive/` 与 `../pi_sdk_learn/docs/` 是下载版快照（md），改内容以 mdx 为准，手动同步 md
+- `src/content/modules/` 是 web 富内容源（mdx，31 个文件）
+- `../pi_source_dive/` 与 `../pi_sdk_learn/docs/` 是下载版快照（md），改动须同步到 mdx 与 md，并运行 `npm run check:sync` 验证正文和代码一致
 
 > ⚠️ mdx 比 md 严格：表格/正文里的裸 `{...}` 会被当 JS 表达式执行（须用反引号包裹），`<br>` 须写成自闭合 `<br/>`。
 
@@ -115,7 +115,8 @@ displayOrder: <number>        # 系列内排序（两系列各自从 1 起）
 ## 构建/校验命令
 
 ```bash
-npm run build              # 生产构建（当前 30 页全绿）
+npm run build              # 生产构建（当前 34 页）
+npm run check:sync         # 校验 Markdown 与 MDX 内容同步
 npm run check:counterpart  # 校验源码精读篇 TS/Python frontmatter 一致性
 npm run build:pdf          # 导出源码精读篇 PDF（TS + Python）
 ```

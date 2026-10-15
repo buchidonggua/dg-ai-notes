@@ -1,0 +1,467 @@
+# 第11章：扩展系统 —— 不改源码给 Agent 加能力
+
+> 源码基准：本地 `pi-main` 快照，核心包版本 `v0.84.3`，核对日期 `2026-10-12`。下文路径均相对源码根目录。
+
+前 10 章已经沿着模型、工具、消息、事件和会话，把 Agent 的运行主线走完了。
+
+现在换一个很实际的问题：团队希望阻止 Agent 执行某类危险命令。每次 Pi 更新都去改核心里的 bash 工具，升级后再合并补丁，显然不是个好维护方式。
+
+Pi 给宿主留了扩展入口。扩展可以在已有工作流节点收到事件，按该事件自己的返回协议继续、修改、取消或短路。我们沿着一个最小的 bash 拦截例子，追踪它如何从扩展文件走到工具执行点，再追到错误结果回到模型。
+
+![扩展注册、绑定与消费闭环](assets/261012-ch11-extension-flow.svg)
+
+---
+
+## 一、问题：团队策略不该每次都改 Agent 核心
+
+假设一次模型回复里带有下面的工具调用：
+
+```text
+toolName = bash
+input.command = rm -rf ./build
+toolCallId = call-17
+```
+
+工具系统负责解析参数和运行命令，但团队想先判断命令是否符合自己的策略。若把规则写进 Pi 的 bash 实现，规则就与框架代码绑在一起。换一条规则又要改核心，升级时还得反复处理同一份补丁。
+
+扩展把这段策略移出核心：
+
+- 核心仍负责生成、验证和执行工具调用。
+- 扩展订阅 Pi 已经提供的工具调用节点。
+- 扩展对危险命令返回 block。
+- Agent Loop 将阻止原因整理成普通工具错误结果，后续仍沿着消息协议运行。
+
+这个示例说明的是拦截接口如何工作，不是 shell 沙箱。字符串匹配无法识别所有 shell 语法、变量展开、别名、包装命令或其他可执行工具。扩展运行在 Pi 进程里，能执行系统允许它执行的操作；安全边界仍应放在操作系统权限、隔离容器或受控执行环境中。
+
+---
+
+## 二、扩展挂在哪里：事件名是一份工作流协议
+
+扩展不是把任意代码插进任意函数。Pi 在具体工作流里暴露了有名字的处理点，事件类型规定传入什么数据，处理器返回值则按各自的规则解释。
+
+阅读 types.ts 中的 on 重载时，可以按用途分组，而不是背一份会变动的事件总数：
+
+| 读者要介入的时机 | 代表事件 | 扩展能影响什么 |
+|---|---|---|
+| 输入到达 Agent 之前 | input | 继续、改写文本和图片，或标记为已处理 |
+| 每轮 Agent 开始前 | before_agent_start | 附加消息或替换当前轮 system prompt |
+| 每次请求模型前 | context、before_provider_request、before_provider_headers | 链式改变消息、请求 payload 或请求头 |
+| 模型或工具生命周期 | agent_start、turn_start、message_end、tool_execution_end | 观察状态；部分节点允许替换消息或结果 |
+| 工具执行边界 | tool_call、tool_result、user_bash | 拦截调用、修改结果，或替换用户手动 bash 执行方式 |
+| 会话变化 | session_before_switch、session_before_fork、session_before_compact | 在特定操作继续前返回取消或调整准备结果 |
+
+这是一组由核心代码发出的扩展协议，不等同于一个包揽所有处理器的通用事件总线。`ExtensionAPI.on()` 会把处理器按事件名放入每个扩展对象自己的 `handlers` Map；运行时的 `ExtensionRunner` 再按扩展顺序找到并调用它们。
+
+Pi 还暴露了 `pi.events`，供扩展之间发布自定义频道消息。它使用 `EventBus`，和这里的生命周期处理器 Map 是相邻但不同的两种机制。
+
+要读懂一个事件，始终追问三件事：
+
+1. 谁在什么状态下创建事件？
+2. runner 怎样遍历处理器，怎样解释返回值？
+3. 消费者怎样据此改变后续状态？
+
+不同事件有不同返回协议。把它们都说成“返回 false 就取消”会抹掉关键差异。
+
+---
+
+## 三、沿一个 tool_call 从注册走到模型
+
+### 3.1 扩展文件做的只是注册
+
+下面的扩展只拦截特定文字模式。它用导出的类型守卫识别 bash 调用，使用第二个参数取得这次处理的 ExtensionContext：
+
+```typescript
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
+
+export default function installCommandGuard(pi: ExtensionAPI): void {
+  pi.on("tool_call", (event, ctx) => {
+    if (!isToolCallEventType("bash", event)) {
+      return;
+    }
+
+    const command = event.input.command;
+    const looksLikeRecursiveForceRemove = /\brm\s+-rf(?:\s|$)/i.test(command);
+
+    if (looksLikeRecursiveForceRemove) {
+      return {
+        block: true,
+        reason: "策略阻止了递归强制删除命令；工作目录是 " + ctx.cwd,
+      };
+    }
+  });
+}
+```
+
+这里有两种对象：
+
+- `pi` 是工厂函数阶段拿到的 ExtensionAPI。它负责注册事件处理器、工具、命令等扩展能力。
+- 处理器收到的 `ctx` 是当前 ExtensionContext。`ctx.mode`、`ctx.cwd`、`ctx.signal` 等值由 runner 创建并在调用时读取。
+
+扩展上下文没有 `ctx.lifecycle` 字段；生命周期位置由 `event.type` 表示。若事件处理函数需要当前运行信息，应从第二个参数 `ctx` 读取。工具定义的 `execute` 也会收到一个 ExtensionContext，但它通过工具执行包装器作为第五个参数传入，不能和 schema 参数混淆。
+
+正则只识别一个狭窄示例。它无法可靠判断复合命令、重定向、命令替换、编码路径、脚本文件内容、PowerShell、其他工具名或 rm 的所有选项组合。正式策略必须在实际执行边界做受限设计和验证；此处只追踪 Pi 的拦截协议。
+
+`isToolCallEventType("bash", event)` 还解决一个类型细节：自定义工具事件的 `toolName` 是普通 string，直接写 `event.toolName === "bash"` 不足以把联合类型缩窄成 BashToolCallEvent。类型守卫让 `event.input.command` 有正确的静态类型。
+
+### 3.2 处理器保存在哪里
+
+loader 创建一个 Extension 对象，初始的几个集合是 Map：
+
+```text
+extension.handlers       事件名 → 处理器数组
+extension.tools          工具名 → ToolDefinition 与来源信息
+extension.commands       命令名 → 命令定义
+extension.flags          flag 名 → flag 定义
+extension.shortcuts     快捷键 → 快捷键处理器
+```
+
+调用 `pi.on("tool_call", handler)` 时，`createExtensionAPI` 取出 `handlers` 中对应的数组并追加处理器。这里没有向 `Agent` 全局注册任意回调；处理器归属于加载它的 Extension。
+
+当工具调用来到运行时，runner 依次检查扩展列表，对每个扩展查找 `handlers.get("tool_call")`。返回值决定后面的控制流。这样拆开有两个好处：声明代码集中在扩展文件；核心的调用点只需维持有限且明确的事件协议。
+
+### 3.3 工具事件发出之前，Agent Core 先准备调用
+
+模型产生一个 assistant 消息，其中含有 `ToolCall`。coding-agent 的 `AgentSession` 在创建时把回调装到 Agent 的 `beforeToolCall` 上。
+
+执行过程可以写成下面的调用链：
+
+```text
+AssistantMessage.content 中出现 toolCall
+  ↓
+packages/agent/src/agent-loop.ts 的 prepareToolCall()
+  ├─ 按 name 查找 AgentTool
+  ├─ prepareArguments（若工具定义了）
+  ├─ 按工具 schema 校验参数
+  └─ 调 config.beforeToolCall
+       ↓
+packages/coding-agent/src/core/agent-session.ts 的 beforeToolCall 回调
+  └─ this._extensionRunner.emitToolCall({
+       type: "tool_call",
+       toolName,
+       toolCallId,
+       input: 已验证的 args
+     })
+       ↓
+packages/coding-agent/src/core/extensions/runner.ts
+  └─ 按扩展顺序调用 tool_call handler
+```
+
+要注意先后关系：unknown tool 会先变成“工具不存在”的错误；参数准备或 schema 校验失败，也不会到达扩展的 `tool_call` 处理器。扩展接到的是成功通过这些前置检查的参数。
+
+`ToolCallEvent.input` 可原地修改，后续 handler 能看见之前的修改；源码注释同时指出，修改后不会再做 schema 校验。若扩展要改参数，就要自行确保新数据仍满足被调用工具的预期。用于阻止命令时，只返回 block，不要顺手修改参数。
+
+### 3.4 runner 怎样解释 block
+
+`emitToolCall()` 对扩展和处理器逐个遍历。一个处理器返回普通结果时，runner 暂存它，并继续访问后续处理器；遇到 `block: true` 就立即返回，不再调用之后的 tool_call handler。
+
+```text
+扩展 A: 返回 undefined
+扩展 B: 返回 { block: true, reason: "策略不允许" }
+扩展 C: 本次不会被调用
+最终返回: { block: true, reason: "策略不允许" }
+```
+
+这不是适用于所有事件的固定规则。像 `context` 会把前一处理器的消息结果作为后一处理器输入；`message_end` 有角色一致性检查；普通生命周期事件可能只通知、不读取结果。应当跟进每个 emitter 自己的方法体。
+
+`emitToolCall()` 没有给每个扩展处理器包一层 try/catch。当前处理器抛出的异常会从 runner 传出；`AgentSession` 的回调再把它抛给 Agent Loop。Agent Loop 的 `prepareToolCall()` 将异常转成失败的工具结果，因此这条链仍会停止执行该工具，但它和“普通通知事件捕获异常后继续”不是同一种策略。
+
+### 3.5 block 怎样回到模型
+
+Agent Core 在 `prepareToolCall()` 里拿到 `{ block: true, reason }` 后，不调用工具的 `execute`。它构造工具错误结果，结果正文是 reason，Details 是空对象，并把外层 outcome 的 `isError` 设成 `true`。
+
+```text
+输入:
+  toolCallId = call-17
+  toolName = bash
+  reason = 策略阻止了递归强制删除命令
+
+准备出的 outcome:
+  result.content = [{ type: "text", text: reason }]
+  result.details = {}
+  outcome.isError = true
+
+写回消息:
+  role = toolResult
+  toolCallId = call-17
+  toolName = bash
+  content = [reason]
+  isError = true
+```
+
+这个消息仍保留原始 `toolCallId`，所以能与 assistant 消息里的调用对应。执行器发出 `tool_execution_end`，再发出工具结果的 `message_start` 与 `message_end`；消息随后加入 Agent Loop 当前上下文。
+
+若没有设置终止提示，Agent Loop 会把工具错误结果送入下一次模型请求。模型就能读到“命令被阻止”，再决定怎样回答。扩展没有直接伪造模型消息，也没有把错误从上下文中删除。
+
+示意输出：
+
+```text
+assistant: toolCall(bash, call-17, "rm -rf ./build")
+toolResult(bash, call-17, isError=true,
+           "策略阻止了递归强制删除命令")
+assistant: "我没有运行该命令。可以改用更安全的清理步骤。"
+```
+
+若 block 结果同时设置 `terminate: true`，这只是工具批次提前结束提示。源码要求批次中每个最终工具结果都带此提示，Agent Loop 才停止后续工具轮次；一次并行调用中的其他结果会影响是否终止。不要把它当成进程退出或会话永久终止。
+
+### 3.6 一个最小可复现路径
+
+把链路压成 7 个可以逐个验证的状态：
+
+1. 扩展模块导出默认工厂函数。
+2. 工厂调用 `pi.on("tool_call", ...)`，处理器进入 Extension 的 Map。
+3. AgentSession 设置 `beforeToolCall`，它在参数验证后读取当前 runner。
+4. runner 生成并分派 ToolCallEvent。
+5. 扩展返回 `{ block: true, reason }`。
+6. Agent Loop 跳过 `execute`，生成 `isError: true` 的 toolResult。
+7. toolResult 进入上下文，随后模型继续或按 terminate 规则结束本轮。
+
+这里的“返回给模型”不是扩展框架单独调用模型，而是复用已有 Agent Loop。下一轮请求从当前上下文重新构建，工具错误消息就沿普通消息路径到达模型。
+
+---
+
+## 四、扩展工厂怎样活到 Agent 运行时
+
+从扩展文件看，只是默认导出一个函数；从启动链路看，它需要跨过加载、注册、绑定、运行几个时间点。
+
+### 4.1 Jiti 负责导入扩展模块
+
+`packages/coding-agent/src/core/extensions/loader.ts` 中的 `loadExtensionModule()` 使用 `createJiti()` 导入路径。根据运行环境，它选择不同模块解析配置：
+
+- TypeScript 源码运行时使用 bundled 模块和 tsconfig 路径。
+- 未打包的 Node 运行时使用 alias 指向构建后的包入口。
+- Bun、Node SEA 和 bundled Node 使用 virtualModules 提供打包内的模块。
+
+它随后用 `jiti.import(path, { default: true })` 取默认导出，再检查结果是不是扩展工厂函数。Jiti 在此处负责运行时模块导入和 TS 支持，不代表每次文件保存都会热更新；扩展缓存、reload 与所处运行时都会影响何时重新加载。
+
+### 4.2 工厂阶段先声明，不能提前调用大多数运行时动作
+
+`createExtensionRuntime()` 给一部分操作型方法安上 throwing stubs。注册扩展时调用 `sendMessage()`、`setModel()` 等方法，会明确报“Extension runtime not initialized”；当时 AgentSession 还没有接管这些动作。
+
+工厂阶段并非只有 stubs：
+
+- `pi.on()`、`pi.registerTool()`、`pi.registerCommand()` 等注册方法有效。
+- provider 注册会先进入 pending 队列，等模型运行时具备后处理。
+- `refreshTools()` 在加载阶段暂时是空操作，工具注册仍然记录在 Extension 中。
+- `pi.exec()` 直接调用 loader 提供的命令执行函数，不在这组 throwing stubs 里。
+
+最后一点很关键：这些对象是 API 组织和时序约束，不是进程隔离。工厂函数与运行时扩展代码都不能被视为沙箱。
+
+### 4.3 真实调用顺序：从 ResourceLoader 到 bindCore
+
+加载扩展后，`initializeExtension()` 创建 Extension 及 ExtensionAPI，运行 `await factory(api)`。成功时提交收集到的注册；失败则 discard 并由加载路径记录错误。
+
+随后 coding-agent 创建 AgentSession。`_buildRuntime()` 从 ResourceLoader 取得 Extension 集合和共享 runtime，创建 ExtensionRunner，然后调用 `_bindExtensionCore()`。这一步把真实的消息、工具、会话、模型等 action 函数交给 `runner.bindCore()`，由共享 runtime 替换对应 stubs。
+
+启动过程的边界可以画成：
+
+```text
+ResourceLoader.reload()
+  └─ loadExtensions()
+      └─ Jiti 导入模块
+          └─ factory(pi)
+              ├─ on()：登记 handler
+              ├─ registerTool()：登记定义
+              └─ 操作方法：仍是 stubs（若调用会报错）
+                    ↓
+AgentSession._buildRuntime()
+  ├─ new ExtensionRunner(extensions, runtime, ...)
+  ├─ _bindExtensionCore(runner)
+  │    └─ runner.bindCore(actions, contextActions, providerActions)
+  └─ _refreshToolRegistry()
+       └─ ToolDefinition 包装成 AgentTool，放进 Agent 工具列表
+                    ↓
+bindExtensions(...)
+  ├─ 绑定 UI / mode / command actions
+  ├─ emit session_start
+  └─ 扩展继续发现 skill / prompt / theme
+```
+
+两阶段不只是“把方法换掉”。provider 注册可能需要先排队；context getter 也要等到当前 session、model、UI mode 等 runtime 对象创建后才能返回真实状态。`runner.bindCore()` 建立共享 runtime 的核心动作；`AgentSession.bindExtensions()` 之后再绑定具体 UI 和命令上下文，并发出 session_start。
+
+不同事件和 API 方法可用的时机不一样。工厂函数适合声明能力；需要当前会话上下文的工作应放到事件回调中。
+
+### 4.4 ToolDefinition 不是 AgentTool：第五个参数传上下文
+
+扩展公开的 `ToolDefinition` 保留了扩展专用字段，例如 prompt snippet、渲染器以及执行模式。它的 `execute` 方法参数依次是 toolCallId、schema 参数、signal、更新回调、ExtensionContext。
+
+`packages/coding-agent/src/core/tools/tool-definition-wrapper.ts` 的 `wrapToolDefinition()` 把定义转换为 Agent Core 的 `AgentTool`，再通过闭包或执行时上下文把 ExtensionContext 传回工具的第五个位置。第 5 个参数是框架上下文，不在模型的 JSON 参数中，也不会进入 TypeBox schema。
+
+```typescript
+import { Type } from "typebox";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+
+export default function installLookupTool(pi: ExtensionAPI): void {
+  pi.registerTool({
+    name: "policy_lookup",
+    label: "Policy lookup",
+    description: "Look up a local policy entry.",
+    promptSnippet: "Look up a named policy",
+    parameters: Type.Object({
+      name: Type.String(),
+    }),
+    execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
+      const trusted = ctx.isProjectTrusted();
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Policy requested: " + params.name + "; trusted project: " + trusted,
+          },
+        ],
+        details: { name: params.name, trusted },
+      };
+    },
+  });
+}
+```
+
+这个定义演示类型与参数位置，不是完整产品工具。若工具要读写文件、联网或启动外部进程，必须为这些操作选择明确的边界并考虑信任模型。拿到 ExtensionContext 不会自动使这些操作安全。
+
+---
+
+## 五、第二条链路：阻止会话切换
+
+工具调用展示“执行前短路”。会话切换则展示另一种返回协议：操作进入 teardown 前可以被取消。
+
+用户触发 new 或 switch 时，`AgentSessionRuntime.emitBeforeSwitch()` 检查 runner 有没有 `session_before_switch` 处理器。存在时它发出事件，再把 `result.cancel === true` 转为 cancelled 状态。
+
+```typescript
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+
+export default function confirmBeforeSwitch(pi: ExtensionAPI): void {
+  pi.on("session_before_switch", async (event, ctx) => {
+    if (!ctx.hasUI) {
+      return;
+    }
+
+    const description = event.targetSessionFile ?? event.reason;
+    const confirmed = await ctx.ui.confirm(
+      "Leave this session?",
+      "Switch to " + description + " and close the current session?",
+    );
+
+    if (!confirmed) {
+      return { cancel: true };
+    }
+  });
+}
+```
+
+这里拿到的 `ctx` 是事件处理上下文；因为是否能弹对话框取决于运行模式，代码先检查 `hasUI`。返回 `cancel: true` 后，`switchSession()` 或 `newSession()` 立即返回，不会执行当前会话 abort、shutdown、dispose 和 runtime replacement 流程。
+
+边界也要说清：
+
+- 如果没有 handler，操作按正常流程继续。
+- 如果普通 handler 不返回 cancel，操作继续。
+- `runner.emit()` 对这类 session-before 事件会捕获 handler 异常、记入扩展错误，再继续遍历；异常本身不会隐式变成取消。
+- 一旦某个 handler 返回 cancel，后续处理器不再收到这一事件。
+- import、new、switch 的触发点与参数有所不同；看它们各自调用的 runtime 方法，不要只从事件类型推断全部路径。
+
+从返回协议看，这和 tool_call 的短路都能阻止下一步，但它们消费结果的位置不同：一个在 Agent Loop 工具准备阶段，另一个在 session runtime 替换状态之前。
+
+---
+
+## 六、事件结果与异常边界：不能用一个 try/catch 结论覆盖全系统
+
+扩展系统有很多 try/catch，但每个 emitter 的恢复策略取决于结果的含义。
+
+### 6.1 通知事件会记录错误并继续
+
+通用 `emit()` 对 session-before 等事件逐个调用处理器。抛错会经 `emitError()` 通知宿主，再尝试下一个处理器。对 session-before 事件，cancel 才会提前结束处理链；对纯通知事件，返回值通常不参与状态决策。
+
+这提供了局部错误隔离，但不意味着所有扩展异常都会被吞掉。
+
+### 6.2 可变换事件采用各自的合并方式
+
+- `emitInput()` 把 transform 后的文字和图片作为下一处理器的输入；handled 会直接结束。
+- `emitContext()` 从消息副本开始，上一 handler 返回的 messages 会作为下一 handler 的输入；单个 handler 抛错时记录错误，保留当时的消息继续链路。
+- `emitMessageEnd()` 逐个接受同 role 的新消息；角色不同的替换结果会被拒绝。
+- `emitToolResult()` 把 content、details、isError、usage 的已变更值传到后续 handler；每个 handler 的异常都会记录并继续。
+
+因此“链式变换”是准确的，但每种数据有自己的协议与验证条件。
+
+### 6.3 tool_call 的失败闭环来自 Agent Loop
+
+`emitToolCall()` 没有同样的逐处理器异常 catch。它上抛到 AgentSession 回调，再进入 Agent Core `prepareToolCall()` 的 try/catch；那里会为调用创建失败结果并将 outcome 标为错误。
+
+这不是通知事件的继续策略。它的运行结果与 block 类似——工具 execute 不会运行，模型会收到失败结果——但原因是异常，而不是扩展显式返回 block。
+
+### 6.4 取消和错误消息并不代表系统自动恢复
+
+tool_call handler 返回 block 时 Agent Loop 默认会带着 toolResult 继续请求模型。只有显式使用终止提示并满足整批条件，才提前结束工具轮次。
+
+模型调用事件是 error 或 aborted 时，Agent Loop 会结束当前运行并发出 turn_end、agent_end；它不会自动重试。coding-agent 自己可能由外围 retry 或 overflow recovery 逻辑决定之后重新运行。扩展错误是否触发重试，也必须沿宿主逻辑继续追踪。
+
+---
+
+## 七、扩展系统能做什么，也不能保证什么
+
+### 7.1 API 门面是代码边界，不是安全边界
+
+`ExtensionContext` 提供 UI、当前 model、session manager 查询、当前信号、compact、abort 和 shutdown 等方法。`ExtensionCommandContext` 额外提供用户命令常用的 waitForIdle、newSession、fork、switchSession、reload 等操作。
+
+这让 API 的调用面更容易读，也能让宿主在运行时替换上下文。它没有隔离 Node 权限、禁止文件读写或约束外部命令。扩展模块可以导入可用模块；loader 的 `pi.exec()` 本身也能运行系统命令。不要把“Context 类型上看起来只读”宣传成安全沙箱。
+
+### 7.2 handler 状态不是持久化状态
+
+扩展对象里的 Map 在一次加载和绑定周期内保存工具定义和处理器。reload 或会话替换会使旧 runner / context 失效；旧上下文会通过 `assertActive()` 变为 stale。持久化的扩展状态要使用适当的 Session Entry 或其他持久化存储，不要依赖模块变量跨 reload 存活。
+
+### 7.3 运行顺序和并发是两个问题
+
+同一个事件分派给多个扩展时，runner 按扩展和 handler 顺序遍历；对返回值有意义的 emitter 可能把前一个结果交给下一个。
+
+另一方面，多个工具调用的准备阶段会按消息中的调用顺序逐个 await：参数准备、校验和 beforeToolCall 执行完，Agent Loop 才为该调用安排执行。默认并行分支并不并行执行 prepareToolCall；它并发启动已准备调用的执行与 finalizer，然后按原调用顺序汇总结果。显式配置顺序执行或某个工具的 executionMode 为 sequential 时，执行阶段也会逐项等待。不要把“准备逐项等待”误解为“所有外部副作用一定串行”；共享扩展状态及实际执行仍须按其并发语义设计。
+
+### 7.4 trust 与扩展权限是不同问题
+
+扩展信任流程控制哪些扩展来源会被允许加载；项目 trust 也会影响 coding-agent 的具体行为。它们不能取代操作系统权限，也不能把已经加载的扩展变成隔离代码。需要限制实际能力时，应在工具执行环境上设置可核验的权限边界。
+
+---
+
+## 八、把设计方法迁移到自己的 Agent
+
+Pi 的扩展设计有几个可复用的取舍。
+
+### 8.1 先找稳定的工作流边界
+
+不要先问“能不能给插件无限制的回调”。先把流程画出来，再挑少量关键节点暴露事件，例如输入入队前、工具参数已验证后、提交模型前、会话切换前。这样扩展只能影响框架承诺的时点，核心状态也不必任意暴露。
+
+### 8.2 每类事件单独定义返回类型
+
+tool_call 的 block、context 的 messages 替换、input 的 transform/handled、session_before_switch 的 cancel，回答的是不同业务问题。把语义表达在联合类型和 emitter 实现中，能让调用端清楚知道“修改了什么”以及“下一步何时停止”。
+
+### 8.3 把注册期与执行期分开
+
+扩展文件加载时收集声明；核心运行对象准备好后再绑定动作。若注册阶段确实需要提前声明 provider 等能力，可先入队，绑定完成时再消费。不要让 factory 处在半初始化状态时悄悄执行会话操作。
+
+### 8.4 为每条链路定义错误归属
+
+选择一套明确策略：错误被记录后继续、返回错误值让调用方修复，或终止本次操作。Pi 的事件之间保留了这些差异。设计插件接口时，也要把错误路径写进协议，避免 handler 抛错后的状态含糊。
+
+### 8.5 用接口收窄 API，但别夸大安全保证
+
+门面能减少无意依赖，也让宿主可以替换实现；它不会限制进程权限。安全需要更低层的实际隔离机制，类型系统不是操作系统。
+
+---
+
+## 九、下一站
+
+扩展让策略、工具和交互行为能在核心之外演进。但有了 hook 之后，怎样证明“工具没有被执行”“会话切换真的被取消”“模型最终看到了错误结果”？
+
+下一章会沿着 coding-agent 的测试 harness 和 faux provider，拆解如何用可编排的响应验证 Agent 行为；也会对比更小的 agentLoop 单元测试，说明如何直接注入 streamFn 控制每一次模型响应，而不连接真实服务。
+
+接着读：[第12章：测试模式 —— 不用真实模型验证 Agent 行为](第12章-测试模式-不用真实模型验证Agent行为.md)。
+
+---
+
+> **本章关键源码索引**
+>
+> - packages/coding-agent/src/core/extensions/types.ts — ExtensionAPI、ExtensionContext、ExtensionCommandContext、ToolCallEvent、ToolCallEventResult、ToolDefinition、SessionBeforeSwitchEvent
+> - packages/coding-agent/src/core/extensions/loader.ts — createExtensionRuntime、createExtensionAPI、loadExtensionModule、initializeExtension、loadExtensionFromFactory
+> - packages/coding-agent/src/core/extensions/runner.ts — bindCore、createContext、createCommandContext、emit、emitInput、emitContext、emitMessageEnd、emitToolResult、emitToolCall
+> - packages/coding-agent/src/core/resource-loader.ts — loadCurrentExtensionSet、loadExtensionFactories、loadFinalExtensionSet
+> - packages/coding-agent/src/core/agent-session.ts — _installAgentToolHooks、_buildRuntime、_bindExtensionCore、_refreshToolRegistry、bindExtensions
+> - packages/coding-agent/src/core/agent-session-runtime.ts — emitBeforeSwitch、newSession、switchSession、teardownCurrent
+> - packages/coding-agent/src/core/tools/tool-definition-wrapper.ts — wrapToolDefinition、wrapToolDefinitions
+> - packages/agent/src/agent-loop.ts — prepareToolCall、executeToolCalls、createErrorToolResult、createToolResultMessage

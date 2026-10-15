@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>不用真实模型验证 Agent 行为</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --paper:#faf7f2; --ink:#1c1917; --muted:#57534e; --soft:#a8a29e; --rule:rgba(28,25,23,0.10); --accent:#b5523a; --green:#2d6e3c; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--paper); color:var(--ink); font-family:'Geist','PingFang SC','Microsoft YaHei',sans-serif; padding:3rem 1.5rem 2rem; line-height:1.5; }
+  .container { max-width:1240px; margin:0 auto; }
+  .eyebrow { font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:.18em; color:var(--muted); margin-bottom:.5rem; }
+  h1 { font-family:'Instrument Serif','Source Han Serif SC',serif; font-weight:400; font-size:32px; margin-bottom:.5rem; }
+  .subtitle { color:var(--muted); font-size:14px; margin-bottom:2rem; max-width:76ch; }
+  .frame { background:rgba(28,25,23,.02); border:1px solid var(--rule); border-radius:8px; padding:1rem; overflow-x:auto; }
+  svg { display:block; max-width:100%; height:auto; }
+  .footer { margin-top:1.5rem; padding-top:.8rem; border-top:1px solid var(--rule); color:var(--soft); font:10px 'Geist Mono',monospace; letter-spacing:.08em; display:flex; justify-content:space-between; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="eyebrow">PI-AGENT · 第 12 章 · DETERMINISTIC TESTING</p>
+  <h1>不用真实模型验证 Agent 行为</h1>
+  <p class="subtitle">使用内存 harness、Faux 响应队列和注入的 streamFn；等待可观察的完成证据，再断言工具、消息与队列状态。</p>
+  <div class="frame">
+<svg viewBox="0 0 1200 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">第12章 不依赖真实模型的 Agent 测试路径</title>
+  <desc id="desc">coding-agent 集成 harness 以 Faux 队列验证扩展拦截；Agent Core 单测注入 streamFn 验证截断工具调用；底部标注确定完成证据和 cleanup。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#57534e"/></marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#2d6e3c"/></marker>
+    <marker id="arrow-accent" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#b5523a"/></marker>
+  </defs>
+  <rect width="1200" height="760" fill="#faf7f2"/>
+  <text x="44" y="38" fill="#57534e" font-size="11" letter-spacing="2" font-family="'Geist Mono',monospace">PI-AGENT · 第 12 章 · DETERMINISTIC TESTING</text>
+  <text x="44" y="82" fill="#1c1917" font-size="30" font-family="'Instrument Serif','Source Han Serif SC',serif">控制输入，等待完成，再检查行为证据</text>
+  <text x="44" y="112" fill="#57534e" font-size="13" font-family="'Geist','PingFang SC',sans-serif">Faux provider 与注入的 streamFn 把模型变成可控输入；断言围绕消息、工具副作用和响应队列。</text>
+
+  <rect x="34" y="146" width="1132" height="292" rx="10" fill="rgba(28,25,23,0.025)" stroke="rgba(28,25,23,0.12)"/>
+  <text x="54" y="174" fill="#57534e" font-size="10" letter-spacing="1.4" font-family="'Geist Mono',monospace">INTEGRATION · CODING-AGENT SUITE HARNESS</text>
+  <g font-family="'Geist','PingFang SC',sans-serif">
+    <rect x="54" y="202" width="205" height="180" rx="8" fill="#fff" stroke="rgba(28,25,23,0.20)"/>
+    <rect x="54" y="202" width="205" height="34" rx="8" fill="rgba(181,82,58,0.08)"/>
+    <text x="70" y="224" fill="#b5523a" font-size="11" font-weight="600">① 组装本地 harness</text>
+    <text x="70" y="263" fill="#1c1917" font-size="11" font-family="'Geist Mono',monospace">createHarness()</text>
+    <text x="70" y="290" fill="#57534e" font-size="10">真实 Agent / AgentSession</text>
+    <text x="70" y="309" fill="#57534e" font-size="10">内存 session / settings</text>
+    <text x="70" y="338" fill="#a8a29e" font-size="9" font-family="'Geist Mono',monospace">test/suite/harness.ts</text>
+    <text x="70" y="360" fill="#2d6e3c" font-size="10">不连接外部模型服务</text>
+
+    <rect x="282" y="202" width="205" height="180" rx="8" fill="#fff" stroke="rgba(28,25,23,0.20)"/>
+    <rect x="282" y="202" width="205" height="34" rx="8" fill="rgba(45,110,60,0.08)"/>
+    <text x="298" y="224" fill="#2d6e3c" font-size="11" font-weight="600">② 安排 Faux 响应</text>
+    <text x="298" y="263" fill="#1c1917" font-size="10" font-family="'Geist Mono',monospace">registerFauxProvider()</text>
+    <text x="298" y="290" fill="#57534e" font-size="10">setResponses([toolCall, sentinel])</text>
+    <text x="298" y="319" fill="#57534e" font-size="10">队列计数提供剩余响应证据</text>
+    <text x="298" y="350" fill="#a8a29e" font-size="9" font-family="'Geist Mono',monospace">compat.ts → providers/faux.ts</text>
+
+    <rect x="510" y="202" width="205" height="180" rx="8" fill="#fff" stroke="rgba(28,25,23,0.20)"/>
+    <rect x="510" y="202" width="205" height="34" rx="8" fill="rgba(181,82,58,0.08)"/>
+    <text x="526" y="224" fill="#b5523a" font-size="11" font-weight="600">③ 运行被测回归</text>
+    <text x="526" y="263" fill="#1c1917" font-size="11" font-family="'Geist Mono',monospace">await session.prompt()</text>
+    <text x="526" y="290" fill="#57534e" font-size="10">扩展 tool_call 返回 block</text>
+    <text x="526" y="309" fill="#57534e" font-size="10">Agent Loop 写入 isError ToolResult</text>
+    <text x="526" y="338" fill="#57534e" font-size="10">terminate 阻止取第二项</text>
+    <text x="526" y="360" fill="#a8a29e" font-size="9" font-family="'Geist Mono',monospace">regression #5998</text>
+
+    <rect x="738" y="202" width="205" height="180" rx="8" fill="#fff" stroke="rgba(45,110,60,0.38)" stroke-width="1.2"/>
+    <rect x="738" y="202" width="205" height="34" rx="8" fill="rgba(45,110,60,0.08)"/>
+    <text x="754" y="224" fill="#2d6e3c" font-size="11" font-weight="600">④ await 后核对证据</text>
+    <text x="754" y="263" fill="#1c1917" font-size="10" font-family="'Geist Mono',monospace">pendingResponseCount = 1</text>
+    <text x="754" y="290" fill="#57534e" font-size="10">哨兵文本缺席</text>
+    <text x="754" y="309" fill="#57534e" font-size="10">terminate event 存在</text>
+    <text x="754" y="328" fill="#57534e" font-size="10">error toolResult 存在</text>
+    <text x="754" y="360" fill="#2d6e3c" font-size="10">组合断言锁定回归行为</text>
+
+    <rect x="966" y="202" width="170" height="180" rx="8" fill="#fff" stroke="rgba(28,25,23,0.20)"/>
+    <rect x="966" y="202" width="170" height="34" rx="8" fill="rgba(28,25,23,0.04)"/>
+    <text x="982" y="224" fill="#1c1917" font-size="11" font-weight="600">⑤ 清理资源</text>
+    <text x="982" y="263" fill="#1c1917" font-size="11" font-family="'Geist Mono',monospace">cleanup()</text>
+    <text x="982" y="290" fill="#57534e" font-size="10">dispose session</text>
+    <text x="982" y="309" fill="#57534e" font-size="10">unregister provider</text>
+    <text x="982" y="328" fill="#57534e" font-size="10">移除临时目录</text>
+    <text x="982" y="360" fill="#a8a29e" font-size="9">afterEach 清理</text>
+  </g>
+  <line x1="260" y1="292" x2="276" y2="292" stroke="#57534e" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <line x1="488" y1="292" x2="504" y2="292" stroke="#57534e" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <line x1="716" y1="292" x2="732" y2="292" stroke="#b5523a" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <line x1="944" y1="292" x2="960" y2="292" stroke="#2d6e3c" stroke-width="1.2" marker-end="url(#arrow-green)"/>
+
+  <rect x="34" y="464" width="1132" height="214" rx="10" fill="rgba(28,25,23,0.025)" stroke="rgba(28,25,23,0.12)"/>
+  <text x="54" y="492" fill="#57534e" font-size="10" letter-spacing="1.4" font-family="'Geist Mono',monospace">UNIT PATH · AGENT CORE WITH AN INJECTED STREAM FUNCTION</text>
+  <rect x="54" y="518" width="233" height="112" rx="8" fill="#fff" stroke="rgba(28,25,23,0.20)"/>
+  <text x="72" y="546" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist Mono',monospace">agentLoop(..., streamFn)</text>
+  <text x="72" y="572" fill="#57534e" font-size="10" font-family="'Geist','PingFang SC',sans-serif">MockAssistantStream 提供事件</text>
+  <text x="72" y="593" fill="#57534e" font-size="10" font-family="'Geist','PingFang SC',sans-serif">测试等待 result() / 完整消费</text>
+  <line x1="288" y1="574" x2="314" y2="574" stroke="#57534e" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <rect x="322" y="518" width="236" height="112" rx="8" fill="#fff" stroke="rgba(181,82,58,0.40)"/>
+  <text x="340" y="546" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist','PingFang SC',sans-serif">length 截断的 toolCall</text>
+  <text x="340" y="572" fill="#57534e" font-size="10" font-family="'Geist','PingFang SC',sans-serif">failToolCallsFromTruncatedMessage()</text>
+  <text x="340" y="593" fill="#57534e" font-size="10" font-family="'Geist','PingFang SC',sans-serif">潜在不完整参数不交给 execute</text>
+  <line x1="559" y1="574" x2="585" y2="574" stroke="#b5523a" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+
+  <rect x="593" y="518" width="220" height="112" rx="8" fill="rgba(181,82,58,0.06)" stroke="rgba(181,82,58,0.45)"/>
+  <text x="611" y="546" fill="#b5523a" font-size="11" font-weight="600" font-family="'Geist','PingFang SC',sans-serif">可断言的失败结果</text>
+  <text x="611" y="572" fill="#57534e" font-size="10" font-family="'Geist','PingFang SC',sans-serif">executed 仍为空</text>
+  <text x="611" y="593" fill="#57534e" font-size="10" font-family="'Geist','PingFang SC',sans-serif">error ToolResult 写入上下文</text>
+  <line x1="814" y1="574" x2="840" y2="574" stroke="#2d6e3c" stroke-width="1.2" marker-end="url(#arrow-green)"/>
+
+  <rect x="848" y="518" width="286" height="112" rx="8" fill="#fff" stroke="rgba(45,110,60,0.38)"/>
+  <text x="866" y="546" fill="#2d6e3c" font-size="11" font-weight="600" font-family="'Geist','PingFang SC',sans-serif">下一次 streamFn 调用返回 done</text>
+  <text x="866" y="572" fill="#57534e" font-size="10" font-family="'Geist','PingFang SC',sans-serif">callIndex = 2；终态 message 可检查</text>
+  <text x="866" y="593" fill="#57534e" font-size="10" font-family="'Geist','PingFang SC',sans-serif">验证 loop 规则，不验证网络 provider</text>
+
+  <line x1="54" y1="648" x2="1138" y2="648" stroke="rgba(28,25,23,0.10)"/>
+  <text x="54" y="666" fill="#1c1917" font-size="10" font-family="'Geist','PingFang SC',sans-serif">完成证据：await 的 Promise / 终态事件 / 队列余量；取消测试：AbortController + 已到达的事件边界 + await 任务；清理 provider 与 session。</text>
+  <text x="34" y="728" fill="#a8a29e" font-size="9" font-family="'Geist Mono',monospace">SOURCE SNAPSHOT · pi-main v0.84.3 · 2026-10-12</text>
+  <text x="1166" y="728" fill="#a8a29e" font-size="9" text-anchor="end" font-family="'Geist Mono',monospace">261012-ch12-test-flow</text>
+</svg>
+  </div>
+  <div class="footer"><span>Pi source dive · v0.84.3 · 2026-10-12</span><span>261012-ch12-test-flow</span></div>
+</div>
+</body>
+</html>
